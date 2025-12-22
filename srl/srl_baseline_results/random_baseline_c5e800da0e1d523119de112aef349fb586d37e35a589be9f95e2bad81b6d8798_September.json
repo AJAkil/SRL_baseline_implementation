@@ -1,0 +1,258 @@
+{
+  "experiment": "random_baseline",
+  "acfg_file": "/home/newdrive/makil/projects/GenAI_Malware_Repository/development_code/asm_pe_file_exp/MalGuise/MalGuise/src/utils/acfg_extractor/extracted_data/malgraph/MALGRAPH_BETA_3_300_CALIB_SET/c5e800da0e1d523119de112aef349fb586d37e35a589be9f95e2bad81b6d8798_September.json",
+  "hash": "c5e800da0e1d523119de112aef349fb586d37e35a589be9f95e2bad81b6d8798_September",
+  "initial_score": 0.8884068131446838,
+  "final_score": 0.8221837878227234,
+  "best_score": 0.7427781224250793,
+  "best_iteration": 7,
+  "threshold": 0.14346,
+  "bypassed": false,
+  "num_mutations": 30,
+  "max_iterations": 30,
+  "seed": 42,
+  "mutations": [
+    {
+      "func_idx": 2,
+      "block_idx": 7,
+      "nop_idx": 6,
+      "nop_str": "xor eax, 0xccefh\nxor eax, 0xccefh\n",
+      "score_before": 0.8884068131446838,
+      "score_after": 0.8606095314025879
+    },
+    {
+      "func_idx": 0,
+      "block_idx": 2,
+      "nop_idx": 62,
+      "nop_str": "add cl, 0x89h\nsub cl, 0x89h\n",
+      "score_before": 0.8606095314025879,
+      "score_after": 0.8639070391654968
+    },
+    {
+      "func_idx": 1,
+      "block_idx": 2,
+      "nop_idx": 35,
+      "nop_str": "xchg edx, edx\n",
+      "score_before": 0.8639070391654968,
+      "score_after": 0.8632708787918091
+    },
+    {
+      "func_idx": 2,
+      "block_idx": 7,
+      "nop_idx": 173,
+      "nop_str": "xor dl, 0x89h\nxor dl, 0x89h\n",
+      "score_before": 0.8632708787918091,
+      "score_after": 0.8219062089920044
+    },
+    {
+      "func_idx": 2,
+      "block_idx": 4,
+      "nop_idx": 22,
+      "nop_str": "mov ecx, ecx\n",
+      "score_before": 0.8219062089920044,
+      "score_after": 0.8120783567428589
+    },
+    {
+      "func_idx": 2,
+      "block_idx": 4,
+      "nop_idx": 108,
+      "nop_str": "and dx, dx\n",
+      "score_before": 0.8120783567428589,
+      "score_after": 0.7464544177055359
+    },
+    {
+      "func_idx": 2,
+      "block_idx": 6,
+      "nop_idx": 7,
+      "nop_str": "add eax, 0x89h\nsub eax, 0x89h\n",
+      "score_before": 0.7464544177055359,
+      "score_after": 0.7427781224250793
+    },
+    {
+      "func_idx": 2,
+      "block_idx": 7,
+      "nop_idx": 55,
+      "nop_str": "mov cl, cl\n",
+      "score_before": 0.7427781224250793,
+      "score_after": 0.7861498594284058
+    },
+    {
+      "func_idx": 1,
+      "block_idx": 3,
+      "nop_idx": 129,
+      "nop_str": "xor al, 0x89h\nxor al, 0x89h\n",
+      "score_before": 0.7861498594284058,
+      "score_after": 0.788560152053833
+    },
+    {
+      "func_idx": 2,
+      "block_idx": 4,
+      "nop_idx": 6,
+      "nop_str": "xor eax, 0xccefh\nxor eax, 0xccefh\n",
+      "score_before": 0.788560152053833,
+      "score_after": 0.7674795389175415
+    },
+    {
+      "func_idx": 0,
+      "block_idx": 0,
+      "nop_idx": 50,
+      "nop_str": "xor ch, 0xccefh\nxor ch, 0xccefh\n",
+      "score_before": 0.7674795389175415,
+      "score_after": 0.8272917866706848
+    },
+    {
+      "func_idx": 0,
+      "block_idx": 0,
+      "nop_idx": 107,
+      "nop_str": "xor dx, 0x89h\nxor dx, 0x89h\n",
+      "score_before": 0.8272917866706848,
+      "score_after": 0.8756346702575684
+    },
+    {
+      "func_idx": 1,
+      "block_idx": 3,
+      "nop_idx": 114,
+      "nop_str": "cmp ah, ah\n",
+      "score_before": 0.8756346702575684,
+      "score_after": 0.875676691532135
+    },
+    {
+      "func_idx": 2,
+      "block_idx": 0,
+      "nop_idx": 71,
+      "nop_str": "or ax, ax\n",
+      "score_before": 0.875676691532135,
+      "score_after": 0.8199536800384521
+    },
+    {
+      "func_idx": 2,
+      "block_idx": 6,
+      "nop_idx": 40,
+      "nop_str": "add edx, 0x89h\nsub edx, 0x89h\n",
+      "score_before": 0.8199536800384521,
+      "score_after": 0.8146428465843201
+    },
+    {
+      "func_idx": 0,
+      "block_idx": 1,
+      "nop_idx": 87,
+      "nop_str": "add bx, 0xccefh\nsub bx, 0xccefh\n",
+      "score_before": 0.8146428465843201,
+      "score_after": 0.8407333493232727
+    },
+    {
+      "func_idx": 1,
+      "block_idx": 3,
+      "nop_idx": 39,
+      "nop_str": "xor edx, 0xccefh\nxor edx, 0xccefh\n",
+      "score_before": 0.8407333493232727,
+      "score_after": 0.840257465839386
+    },
+    {
+      "func_idx": 0,
+      "block_idx": 2,
+      "nop_idx": 86,
+      "nop_str": "and bx, bx\n",
+      "score_before": 0.840257465839386,
+      "score_after": 0.832273542881012
+    },
+    {
+      "func_idx": 2,
+      "block_idx": 7,
+      "nop_idx": 23,
+      "nop_str": "dec ecx\ninc ecx\n",
+      "score_before": 0.832273542881012,
+      "score_after": 0.8394715785980225
+    },
+    {
+      "func_idx": 0,
+      "block_idx": 1,
+      "nop_idx": 24,
+      "nop_str": "xchg ecx, ecx\n",
+      "score_before": 0.8394715785980225,
+      "score_after": 0.8387236595153809
+    },
+    {
+      "func_idx": 1,
+      "block_idx": 0,
+      "nop_idx": 88,
+      "nop_str": "mov cx, cx\n",
+      "score_before": 0.8387236595153809,
+      "score_after": 0.8358100652694702
+    },
+    {
+      "func_idx": 2,
+      "block_idx": 5,
+      "nop_idx": 67,
+      "nop_str": "dec ax\ninc ax\n",
+      "score_before": 0.8358100652694702,
+      "score_after": 0.9130062460899353
+    },
+    {
+      "func_idx": 2,
+      "block_idx": 6,
+      "nop_idx": 186,
+      "nop_str": "bswap ecx\nbswap ecx\n",
+      "score_before": 0.9130062460899353,
+      "score_after": 0.9044473171234131
+    },
+    {
+      "func_idx": 0,
+      "block_idx": 0,
+      "nop_idx": 137,
+      "nop_str": "or bh, bh\n",
+      "score_before": 0.9044473171234131,
+      "score_after": 0.9209059476852417
+    },
+    {
+      "func_idx": 2,
+      "block_idx": 7,
+      "nop_idx": 96,
+      "nop_str": "xor cx, 0x89h\nxor cx, 0x89h\n",
+      "score_before": 0.9209059476852417,
+      "score_after": 0.8680191040039062
+    },
+    {
+      "func_idx": 2,
+      "block_idx": 7,
+      "nop_idx": 141,
+      "nop_str": "and bh, bh\n",
+      "score_before": 0.8680191040039062,
+      "score_after": 0.8246404528617859
+    },
+    {
+      "func_idx": 1,
+      "block_idx": 3,
+      "nop_idx": 160,
+      "nop_str": "xor dh, 0xccefh\nxor dh, 0xccefh\n",
+      "score_before": 0.8246404528617859,
+      "score_after": 0.8247572183609009
+    },
+    {
+      "func_idx": 2,
+      "block_idx": 5,
+      "nop_idx": 92,
+      "nop_str": "cmp cx, cx\n",
+      "score_before": 0.8247572183609009,
+      "score_after": 0.7847599387168884
+    },
+    {
+      "func_idx": 1,
+      "block_idx": 1,
+      "nop_idx": 49,
+      "nop_str": "or ch, ch\n",
+      "score_before": 0.7847599387168884,
+      "score_after": 0.7862076759338379
+    },
+    {
+      "func_idx": 2,
+      "block_idx": 7,
+      "nop_idx": 11,
+      "nop_str": "mov ebx, ebx\n",
+      "score_before": 0.7862076759338379,
+      "score_after": 0.8221837878227234
+    }
+  ],
+  "score_reduction_absolute": 0.06622302532196045,
+  "score_reduction_percent": 7.4541329875163305
+}
