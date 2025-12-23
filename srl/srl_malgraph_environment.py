@@ -42,7 +42,7 @@ class SRLMalGraphEnvironment:
         nop_mapper: SemanticNOPMapper,
         threshold: float = 0.14346,  # 100fpr: 0.14346, 1000fpr: 0.91276
         max_mutations: int = 50,
-        top_k_blocks: int = 10,
+        top_k_blocks: int = 6,
         reward_type: str = 'continuous',  # 'continuous', 'binary', 'sparse'
         terminal_bonus: float = 10.0,
         sortpooling_method: str = 'l2_norm',  # 'l2_norm' or 'trainable'
@@ -275,6 +275,14 @@ class SRLMalGraphEnvironment:
         data = Data(x=x, edge_index=edge_index)
         return data
     
+
+    def get_current_state_embedding(self) -> torch.Tensor:
+          # Get CFG embeddings from MalGraph
+        data = self.classifier.classifier.model.get_cfg_embedding(self.current_acfg)
+        data = data.to(self.classifier.classifier.model.device)
+       
+        return data.x  # Return block embeddings       
+    
     def _get_state(self) -> Dict:
         """
         Get current state representation for DQN.
@@ -288,13 +296,14 @@ class SRLMalGraphEnvironment:
         """
         return {
             'acfg': self.current_acfg,
+            'block_embeddings': self.get_current_state_embedding(),
             'score': self.current_score,
             'num_mutations': self.num_mutations,
             'important_blocks': self.important_blocks,
             'terminated': self._is_terminal()
         }
     
-    def step(self, action: Tuple[int, int]) -> Tuple[Dict, float, bool, Dict]:
+    def step_single_block(self, action: Tuple[int, int]) -> Tuple[Dict, float, bool, Dict]:
         """
         Execute one mutation step.
         
@@ -306,6 +315,8 @@ class SRLMalGraphEnvironment:
         Returns:
             (next_state, reward, done, info)
         """
+
+
         block_selection_idx, nop_idx = action
         
         # Validate action
@@ -361,6 +372,86 @@ class SRLMalGraphEnvironment:
         
         return self._get_state(), reward, done, info
     
+
+
+    def step(self, action: int) -> Tuple[Dict, float, bool, Dict]:
+        """
+        Execute one mutation step.
+        
+        Args:
+            action: nop_idx
+                - nop_idx: Index into nop_list (0 to num_nop_actions-1)
+        
+        Returns:
+            (next_state, reward, done, info)
+        """
+
+        nop_idx = action
+        
+        # Validate action
+        # if top_k_important_blocks_indices > len(self.important_blocks):
+        #     # Invalid block selection
+        #     return self._get_state(), -1.0, True, {'error': 'Invalid block index'}
+        
+        if nop_idx >= self.num_nop_actions:
+            # Invalid NOP index
+            return self._get_state(), -1.0, True, {'error': 'Invalid NOP index'}
+        
+        # # Get target block
+        # func_idx, block_idx, importance = self.important_blocks[block_selection_idx]
+        
+        # Get NOP data
+        nop_data = self.nop_list[nop_idx]
+        nop_str = nop_data['nop_str']
+
+        print("chosen nop_str: ", nop_str)
+
+
+        for block_selection_idx in range(len(self.important_blocks)):
+            func_idx, block_idx, importance = self.important_blocks[block_selection_idx]
+
+            self._mutate_block(func_idx, block_idx, nop_str)
+        
+        # # Apply mutation using NOP mapper
+        # self._mutate_block(func_idx, block_idx, nop_str)
+        
+        # Update score
+        self.previous_score = self.current_score
+        self.current_score = self.classifier.predict(self.current_acfg)
+        
+        # Update counters
+        self.num_mutations += 1
+        self.mutation_history.append({
+            'func_indices': [self.important_blocks[block_selection_idx][0] for block_selection_idx in range(len(self.important_blocks))],
+            'block_indices': [self.important_blocks[block_selection_idx][1] for block_selection_idx in range(len(self.important_blocks))],
+            'block_importances': [self.important_blocks[block_selection_idx][2] for block_selection_idx in range(len(self.important_blocks))],
+            'nop_idx': nop_idx,
+            'nop_str': nop_data['nop_str'],
+            'score_before': self.previous_score,
+            'score_after': self.current_score
+        })
+        
+        # Recompute important blocks (graph structure unchanged, but embeddings change)
+        self.important_blocks = self._compute_block_importance()
+        
+        # Calculate reward
+        reward = self._calculate_reward()
+        
+        # Check termination
+        done = self._is_terminal()
+        
+        # Info dict
+        info = {
+            'score': self.current_score,
+            'score_delta': self.previous_score - self.current_score,
+            'num_mutations': self.num_mutations,
+            'bypassed': self.current_score < self.threshold
+        }
+        
+        return self._get_state(), reward, done, info
+    
+
+
     def _mutate_block(self, func_idx: int, block_idx: int, nop_str: str):
         """
         Apply semantic NOP to target basic block using the NOP mapper.

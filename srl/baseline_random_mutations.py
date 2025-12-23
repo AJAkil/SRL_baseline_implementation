@@ -76,7 +76,7 @@ def run_random_baseline(
         nop_mapper=nop_mapper,
         threshold=threshold,
         max_mutations=num_iterations,
-        top_k_blocks=10,  # Consider top 10 important blocks
+        top_k_blocks=6,  # Consider top 6 important blocks
         reward_type='continuous',
         terminal_bonus=10.0,
         sortpooling_method='l2_norm'  # Non-trainable for baseline
@@ -136,10 +136,10 @@ def run_random_baseline(
     
     while not done and iteration < num_iterations:
         # Random action: randomly select block and NOP
-        block_idx = random.randint(0, num_block_selections - 1)
+        #block_idx = random.randint(0, num_block_selections - 1)
         # block_idx = 0
         nop_idx = random.randint(0, num_nop_types - 1)
-        action = (block_idx, nop_idx)
+        action = nop_idx
         
         # Take step
         next_state, reward, done, info = env.step(action)
@@ -158,9 +158,22 @@ def run_random_baseline(
         status_symbol = "✓" if info['score'] < initial_score else "✗"
         bypass_symbol = " [BYPASS!]" if info['bypassed'] else ""
         
+        # Clean NOP string for display (remove newlines, truncate if needed)
+        nop_display = str(mutation['nop_str']).replace('\n', '; ').strip()
+        if len(nop_display) > 30:
+            nop_display = nop_display[:27] + "..."
+        
+        # Format block info (shows all top-k blocks that were mutated)
+        num_blocks_mutated = len(mutation['func_indices'])
+        block_info = f"{num_blocks_mutated} blocks"
+        if num_blocks_mutated <= 3:
+            # Show individual blocks if few enough
+            blocks_str = ", ".join([f"F{f}.B{b}" for f, b in zip(mutation['func_indices'], mutation['block_indices'])])
+            block_info = f"[{blocks_str}]"
+        
         print(f"Iter {iteration:3d} {status_symbol} | "
-              f"Block: F{mutation['func_idx']:2d}.B{mutation['block_idx']:3d} | "
-              f"NOP: {mutation['nop_str']:20s} | "
+              f"Blocks: {block_info:25s} | "
+              f"NOP: {nop_display:30s} | "
               f"Score: {info['score']:.6f} | "
               f"Δ: {info['score_delta']:+.6f} | "
               f"Reward: {reward:+.2f}{bypass_symbol}")
@@ -193,6 +206,22 @@ def run_random_baseline(
         hash_name = acfg.get('hash', 'unknown')
         history_file = output_dir / f"random_baseline_{hash_name}.json"
         
+        # Convert mutation history to JSON-serializable format
+        def convert_to_serializable(obj):
+            """Convert numpy types to Python native types."""
+            if isinstance(obj, np.floating):
+                return float(obj)
+            elif isinstance(obj, np.integer):
+                return int(obj)
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, list):
+                return [convert_to_serializable(item) for item in obj]
+            elif isinstance(obj, dict):
+                return {key: convert_to_serializable(value) for key, value in obj.items()}
+            else:
+                return obj
+        
         results = {
             'experiment': 'random_baseline',
             'acfg_file': str(acfg_path),
@@ -206,7 +235,7 @@ def run_random_baseline(
             'num_mutations': int(iteration),
             'max_iterations': int(num_iterations),
             'seed': int(seed),
-            'mutations': env.mutation_history,
+            'mutations': convert_to_serializable(env.mutation_history),
             'score_reduction_absolute': float(initial_score - info['score']),
             'score_reduction_percent': float((initial_score - info['score']) / initial_score * 100)
         }

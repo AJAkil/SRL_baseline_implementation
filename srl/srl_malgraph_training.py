@@ -105,13 +105,13 @@ class SRLMalGraphTrainer:
         
         for step in range(self.max_steps_per_episode):
             # Select action
-            action = self.agent.select_action(state, explore=True)
+            action_nop_idx = self.agent.select_action(state, explore=True)
             
             # Take step in environment
-            next_state, reward, done, info = self.env.step(action)
+            next_state, reward, done, info = self.env.step(action_nop_idx)
             
             # Store experience
-            self.agent.store_experience(state, action, reward, next_state, done)
+            self.agent.store_experience(state, action_nop_idx, reward, next_state, done)
             
             # Train agent
             loss = self.agent.train_step()

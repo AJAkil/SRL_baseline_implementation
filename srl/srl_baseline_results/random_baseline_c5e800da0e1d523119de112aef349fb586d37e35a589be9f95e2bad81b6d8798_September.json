@@ -3,9 +3,9 @@
   "acfg_file": "/home/newdrive/makil/projects/GenAI_Malware_Repository/development_code/asm_pe_file_exp/MalGuise/MalGuise/src/utils/acfg_extractor/extracted_data/malgraph/MALGRAPH_BETA_3_300_CALIB_SET/c5e800da0e1d523119de112aef349fb586d37e35a589be9f95e2bad81b6d8798_September.json",
   "hash": "c5e800da0e1d523119de112aef349fb586d37e35a589be9f95e2bad81b6d8798_September",
   "initial_score": 0.8884068131446838,
-  "final_score": 0.8221837878227234,
-  "best_score": 0.7427781224250793,
-  "best_iteration": 7,
+  "final_score": 0.9957923889160156,
+  "best_score": 0.5916208624839783,
+  "best_iteration": 10,
   "threshold": 0.14346,
   "bypassed": false,
   "num_mutations": 30,
@@ -13,246 +13,906 @@
   "seed": 42,
   "mutations": [
     {
-      "func_idx": 2,
-      "block_idx": 7,
-      "nop_idx": 6,
-      "nop_str": "xor eax, 0xccefh\nxor eax, 0xccefh\n",
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        0,
+        1
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        2,
+        0
+      ],
+      "block_importances": [
+        96.02543640136719,
+        84.65958404541016,
+        30.366151809692383,
+        30.085256576538086,
+        25.808225631713867,
+        23.67100715637207
+      ],
+      "nop_idx": 163,
+      "nop_str": "and dh, dh\n",
       "score_before": 0.8884068131446838,
-      "score_after": 0.8606095314025879
+      "score_after": 0.8648028373718262
     },
     {
-      "func_idx": 0,
-      "block_idx": 2,
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        0,
+        1
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        2,
+        0
+      ],
+      "block_importances": [
+        97.5030517578125,
+        84.23030090332031,
+        30.616744995117188,
+        30.201396942138672,
+        25.300046920776367,
+        22.38728904724121
+      ],
+      "nop_idx": 28,
+      "nop_str": "xor ecx, 0xccefh\nxor ecx, 0xccefh\n",
+      "score_before": 0.8648028373718262,
+      "score_after": 0.8219017386436462
+    },
+    {
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        0,
+        1
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        2,
+        0
+      ],
+      "block_importances": [
+        100.38280487060547,
+        83.37818908691406,
+        30.8938045501709,
+        30.180864334106445,
+        24.424116134643555,
+        20.133968353271484
+      ],
+      "nop_idx": 6,
+      "nop_str": "xor eax, 0xccefh\nxor eax, 0xccefh\n",
+      "score_before": 0.8219017386436462,
+      "score_after": 0.7238384485244751
+    },
+    {
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        0,
+        1
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        2,
+        0
+      ],
+      "block_importances": [
+        102.94828033447266,
+        82.13371276855469,
+        31.049545288085938,
+        30.06016731262207,
+        23.336467742919922,
+        18.656068801879883
+      ],
+      "nop_idx": 70,
+      "nop_str": "cmp ax, ax\n",
+      "score_before": 0.7238384485244751,
+      "score_after": 0.762197732925415
+    },
+    {
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        0,
+        1
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        2,
+        0
+      ],
+      "block_importances": [
+        105.57901000976562,
+        82.28828430175781,
+        32.0240592956543,
+        31.512754440307617,
+        23.717941284179688,
+        18.604686737060547
+      ],
       "nop_idx": 62,
       "nop_str": "add cl, 0x89h\nsub cl, 0x89h\n",
-      "score_before": 0.8606095314025879,
-      "score_after": 0.8639070391654968
+      "score_before": 0.762197732925415,
+      "score_after": 0.7043455243110657
     },
     {
-      "func_idx": 1,
-      "block_idx": 2,
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        0,
+        1
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        2,
+        0
+      ],
+      "block_importances": [
+        108.6153793334961,
+        81.28353881835938,
+        32.82151794433594,
+        31.86394691467285,
+        24.096511840820312,
+        18.7841854095459
+      ],
+      "nop_idx": 57,
+      "nop_str": "xchg cl, cl\n",
+      "score_before": 0.7043455243110657,
+      "score_after": 0.6997314691543579
+    },
+    {
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        0,
+        1
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        2,
+        0
+      ],
+      "block_importances": [
+        108.81665802001953,
+        81.84091186523438,
+        33.68424606323242,
+        32.84982681274414,
+        24.260208129882812,
+        19.15668487548828
+      ],
       "nop_idx": 35,
       "nop_str": "xchg edx, edx\n",
-      "score_before": 0.8639070391654968,
-      "score_after": 0.8632708787918091
+      "score_before": 0.6997314691543579,
+      "score_after": 0.6935532093048096
     },
     {
-      "func_idx": 2,
-      "block_idx": 7,
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        0,
+        1
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        2,
+        0
+      ],
+      "block_importances": [
+        109.07161712646484,
+        82.40772247314453,
+        34.53309631347656,
+        33.854793548583984,
+        24.439790725708008,
+        19.551746368408203
+      ],
+      "nop_idx": 26,
+      "nop_str": "cmp ecx, ecx\n",
+      "score_before": 0.6935532093048096,
+      "score_after": 0.7301586270332336
+    },
+    {
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        0,
+        1
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        2,
+        0
+      ],
+      "block_importances": [
+        111.96920013427734,
+        82.56388092041016,
+        35.43297576904297,
+        34.90837097167969,
+        24.905885696411133,
+        19.676488876342773
+      ],
       "nop_idx": 173,
       "nop_str": "xor dl, 0x89h\nxor dl, 0x89h\n",
-      "score_before": 0.8632708787918091,
-      "score_after": 0.8219062089920044
+      "score_before": 0.7301586270332336,
+      "score_after": 0.676522970199585
     },
     {
-      "func_idx": 2,
-      "block_idx": 4,
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        0,
+        1
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        2,
+        1
+      ],
+      "block_importances": [
+        114.37566375732422,
+        81.28983306884766,
+        35.95841979980469,
+        35.175575256347656,
+        23.95195960998535,
+        20.93840789794922
+      ],
+      "nop_idx": 139,
+      "nop_str": "add bh, 0x89h\nsub bh, 0x89h\n",
+      "score_before": 0.676522970199585,
+      "score_after": 0.5916208624839783
+    },
+    {
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        1,
+        2
+      ],
+      "block_importances": [
+        117.07498931884766,
+        80.05945587158203,
+        38.30171585083008,
+        37.90195083618164,
+        25.662912368774414,
+        24.285282135009766
+      ],
       "nop_idx": 22,
       "nop_str": "mov ecx, ecx\n",
-      "score_before": 0.8219062089920044,
-      "score_after": 0.8120783567428589
+      "score_before": 0.5916208624839783,
+      "score_after": 0.6440108418464661
     },
     {
-      "func_idx": 2,
-      "block_idx": 4,
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        1,
+        2
+      ],
+      "block_importances": [
+        116.86454010009766,
+        80.474365234375,
+        39.124698638916016,
+        38.78943634033203,
+        26.280492782592773,
+        24.22588539123535
+      ],
+      "nop_idx": 151,
+      "nop_str": "xor bl, 0x89h\nxor bl, 0x89h\n",
+      "score_before": 0.6440108418464661,
+      "score_after": 0.6196466684341431
+    },
+    {
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        1,
+        2
+      ],
+      "block_importances": [
+        119.21238708496094,
+        78.86579132080078,
+        41.13119888305664,
+        40.46626663208008,
+        29.842880249023438,
+        23.267810821533203
+      ],
       "nop_idx": 108,
       "nop_str": "and dx, dx\n",
-      "score_before": 0.8120783567428589,
-      "score_after": 0.7464544177055359
+      "score_before": 0.6196466684341431,
+      "score_after": 0.6384077668190002
     },
     {
-      "func_idx": 2,
-      "block_idx": 6,
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        1,
+        2
+      ],
+      "block_importances": [
+        119.90267944335938,
+        79.06044006347656,
+        41.55195236206055,
+        40.94594955444336,
+        30.89579963684082,
+        23.186744689941406
+      ],
+      "nop_idx": 8,
+      "nop_str": "xor eax, 0x89h\nxor eax, 0x89h\n",
+      "score_before": 0.6384077668190002,
+      "score_after": 0.6481533050537109
+    },
+    {
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        1,
+        2
+      ],
+      "block_importances": [
+        122.33860778808594,
+        77.64205932617188,
+        43.76148986816406,
+        43.2164192199707,
+        33.578433990478516,
+        22.48112678527832
+      ],
       "nop_idx": 7,
       "nop_str": "add eax, 0x89h\nsub eax, 0x89h\n",
-      "score_before": 0.7464544177055359,
-      "score_after": 0.7427781224250793
+      "score_before": 0.6481533050537109,
+      "score_after": 0.6537609696388245
     },
     {
-      "func_idx": 2,
-      "block_idx": 7,
-      "nop_idx": 55,
-      "nop_str": "mov cl, cl\n",
-      "score_before": 0.7427781224250793,
-      "score_after": 0.7861498594284058
-    },
-    {
-      "func_idx": 1,
-      "block_idx": 3,
-      "nop_idx": 129,
-      "nop_str": "xor al, 0x89h\nxor al, 0x89h\n",
-      "score_before": 0.7861498594284058,
-      "score_after": 0.788560152053833
-    },
-    {
-      "func_idx": 2,
-      "block_idx": 4,
-      "nop_idx": 6,
-      "nop_str": "xor eax, 0xccefh\nxor eax, 0xccefh\n",
-      "score_before": 0.788560152053833,
-      "score_after": 0.7674795389175415
-    },
-    {
-      "func_idx": 0,
-      "block_idx": 0,
-      "nop_idx": 50,
-      "nop_str": "xor ch, 0xccefh\nxor ch, 0xccefh\n",
-      "score_before": 0.7674795389175415,
-      "score_after": 0.8272917866706848
-    },
-    {
-      "func_idx": 0,
-      "block_idx": 0,
-      "nop_idx": 107,
-      "nop_str": "xor dx, 0x89h\nxor dx, 0x89h\n",
-      "score_before": 0.8272917866706848,
-      "score_after": 0.8756346702575684
-    },
-    {
-      "func_idx": 1,
-      "block_idx": 3,
-      "nop_idx": 114,
-      "nop_str": "cmp ah, ah\n",
-      "score_before": 0.8756346702575684,
-      "score_after": 0.875676691532135
-    },
-    {
-      "func_idx": 2,
-      "block_idx": 0,
-      "nop_idx": 71,
-      "nop_str": "or ax, ax\n",
-      "score_before": 0.875676691532135,
-      "score_after": 0.8199536800384521
-    },
-    {
-      "func_idx": 2,
-      "block_idx": 6,
-      "nop_idx": 40,
-      "nop_str": "add edx, 0x89h\nsub edx, 0x89h\n",
-      "score_before": 0.8199536800384521,
-      "score_after": 0.8146428465843201
-    },
-    {
-      "func_idx": 0,
-      "block_idx": 1,
-      "nop_idx": 87,
-      "nop_str": "add bx, 0xccefh\nsub bx, 0xccefh\n",
-      "score_before": 0.8146428465843201,
-      "score_after": 0.8407333493232727
-    },
-    {
-      "func_idx": 1,
-      "block_idx": 3,
-      "nop_idx": 39,
-      "nop_str": "xor edx, 0xccefh\nxor edx, 0xccefh\n",
-      "score_before": 0.8407333493232727,
-      "score_after": 0.840257465839386
-    },
-    {
-      "func_idx": 0,
-      "block_idx": 2,
-      "nop_idx": 86,
-      "nop_str": "and bx, bx\n",
-      "score_before": 0.840257465839386,
-      "score_after": 0.832273542881012
-    },
-    {
-      "func_idx": 2,
-      "block_idx": 7,
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        2,
+        3,
+        1,
+        2
+      ],
+      "block_importances": [
+        124.60758972167969,
+        76.01112365722656,
+        49.67293167114258,
+        49.65611267089844,
+        39.180999755859375,
+        22.92432975769043
+      ],
       "nop_idx": 23,
       "nop_str": "dec ecx\ninc ecx\n",
-      "score_before": 0.832273542881012,
-      "score_after": 0.8394715785980225
+      "score_before": 0.6537609696388245,
+      "score_after": 0.7056955099105835
     },
     {
-      "func_idx": 0,
-      "block_idx": 1,
-      "nop_idx": 24,
-      "nop_str": "xchg ecx, ecx\n",
-      "score_before": 0.8394715785980225,
-      "score_after": 0.8387236595153809
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        2,
+        3,
+        1,
+        2
+      ],
+      "block_importances": [
+        126.14928436279297,
+        76.4272689819336,
+        55.2116584777832,
+        55.11565399169922,
+        43.48487854003906,
+        24.00777244567871
+      ],
+      "nop_idx": 55,
+      "nop_str": "mov cl, cl\n",
+      "score_before": 0.7056955099105835,
+      "score_after": 0.717096209526062
     },
     {
-      "func_idx": 1,
-      "block_idx": 0,
-      "nop_idx": 88,
-      "nop_str": "mov cx, cx\n",
-      "score_before": 0.8387236595153809,
-      "score_after": 0.8358100652694702
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        1,
+        2
+      ],
+      "block_importances": [
+        125.83232116699219,
+        76.71544647216797,
+        55.08937072753906,
+        54.952091217041016,
+        43.663368225097656,
+        23.949251174926758
+      ],
+      "nop_idx": 59,
+      "nop_str": "cmp cl, cl\n",
+      "score_before": 0.717096209526062,
+      "score_after": 0.8695119619369507
     },
     {
-      "func_idx": 2,
-      "block_idx": 5,
-      "nop_idx": 67,
-      "nop_str": "dec ax\ninc ax\n",
-      "score_before": 0.8358100652694702,
-      "score_after": 0.9130062460899353
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        1,
+        2
+      ],
+      "block_importances": [
+        128.95028686523438,
+        77.07105255126953,
+        58.16924285888672,
+        57.9068603515625,
+        45.95584487915039,
+        24.144412994384766
+      ],
+      "nop_idx": 129,
+      "nop_str": "xor al, 0x89h\nxor al, 0x89h\n",
+      "score_before": 0.8695119619369507,
+      "score_after": 0.8932140469551086
     },
     {
-      "func_idx": 2,
-      "block_idx": 6,
-      "nop_idx": 186,
-      "nop_str": "bswap ecx\nbswap ecx\n",
-      "score_before": 0.9130062460899353,
-      "score_after": 0.9044473171234131
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        1,
+        2
+      ],
+      "block_importances": [
+        131.56903076171875,
+        75.97647857666016,
+        61.04437255859375,
+        60.80352020263672,
+        48.521305084228516,
+        23.363218307495117
+      ],
+      "nop_idx": 154,
+      "nop_str": "mov dh, dh\n",
+      "score_before": 0.8932140469551086,
+      "score_after": 0.886510968208313
     },
     {
-      "func_idx": 0,
-      "block_idx": 0,
-      "nop_idx": 137,
-      "nop_str": "or bh, bh\n",
-      "score_before": 0.9044473171234131,
-      "score_after": 0.9209059476852417
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        1,
+        2
+      ],
+      "block_importances": [
+        131.68902587890625,
+        75.48612976074219,
+        60.57271957397461,
+        60.414283752441406,
+        48.432804107666016,
+        23.058046340942383
+      ],
+      "nop_idx": 6,
+      "nop_str": "xor eax, 0xccefh\nxor eax, 0xccefh\n",
+      "score_before": 0.886510968208313,
+      "score_after": 0.9198147058486938
     },
     {
-      "func_idx": 2,
-      "block_idx": 7,
-      "nop_idx": 96,
-      "nop_str": "xor cx, 0x89h\nxor cx, 0x89h\n",
-      "score_before": 0.9209059476852417,
-      "score_after": 0.8680191040039062
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        1,
+        2
+      ],
+      "block_importances": [
+        134.56874084472656,
+        74.64746856689453,
+        63.62245178222656,
+        63.4518928527832,
+        50.64674377441406,
+        22.515933990478516
+      ],
+      "nop_idx": 143,
+      "nop_str": "mov bl, bl\n",
+      "score_before": 0.9198147058486938,
+      "score_after": 0.9138283729553223
     },
     {
-      "func_idx": 2,
-      "block_idx": 7,
-      "nop_idx": 141,
-      "nop_str": "and bh, bh\n",
-      "score_before": 0.8680191040039062,
-      "score_after": 0.8246404528617859
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        1,
+        2
+      ],
+      "block_importances": [
+        134.1573028564453,
+        74.89015197753906,
+        62.89152908325195,
+        62.78194046020508,
+        50.24943923950195,
+        22.447063446044922
+      ],
+      "nop_idx": 50,
+      "nop_str": "xor ch, 0xccefh\nxor ch, 0xccefh\n",
+      "score_before": 0.9138283729553223,
+      "score_after": 0.9418724775314331
     },
     {
-      "func_idx": 1,
-      "block_idx": 3,
-      "nop_idx": 160,
-      "nop_str": "xor dh, 0xccefh\nxor dh, 0xccefh\n",
-      "score_before": 0.8246404528617859,
-      "score_after": 0.8247572183609009
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        1,
+        2
+      ],
+      "block_importances": [
+        137.05955505371094,
+        74.05703735351562,
+        66.08576202392578,
+        65.762451171875,
+        51.92709732055664,
+        21.97381591796875
+      ],
+      "nop_idx": 183,
+      "nop_str": "push dx\npop dx\n",
+      "score_before": 0.9418724775314331,
+      "score_after": 0.9392085671424866
     },
     {
-      "func_idx": 2,
-      "block_idx": 5,
-      "nop_idx": 92,
-      "nop_str": "cmp cx, cx\n",
-      "score_before": 0.8247572183609009,
-      "score_after": 0.7847599387168884
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        1,
+        2
+      ],
+      "block_importances": [
+        137.09817504882812,
+        75.1277084350586,
+        66.9200668334961,
+        66.47266387939453,
+        52.04248809814453,
+        22.245262145996094
+      ],
+      "nop_idx": 166,
+      "nop_str": "dec dl\ninc dl\n",
+      "score_before": 0.9392085671424866,
+      "score_after": 0.9443140625953674
     },
     {
-      "func_idx": 1,
-      "block_idx": 1,
-      "nop_idx": 49,
-      "nop_str": "or ch, ch\n",
-      "score_before": 0.7847599387168884,
-      "score_after": 0.7862076759338379
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        1,
+        2
+      ],
+      "block_importances": [
+        138.5676727294922,
+        75.54131317138672,
+        71.28424072265625,
+        71.00341796875,
+        54.4779167175293,
+        23.263160705566406
+      ],
+      "nop_idx": 179,
+      "nop_str": "push edx\npop edx\n",
+      "score_before": 0.9443140625953674,
+      "score_after": 0.9449579119682312
     },
     {
-      "func_idx": 2,
-      "block_idx": 7,
-      "nop_idx": 11,
-      "nop_str": "mov ebx, ebx\n",
-      "score_before": 0.7862076759338379,
-      "score_after": 0.8221837878227234
+      "func_indices": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        7,
+        3,
+        2,
+        1,
+        2
+      ],
+      "block_importances": [
+        138.7747802734375,
+        76.61311340332031,
+        72.26461791992188,
+        71.95380401611328,
+        54.60932540893555,
+        23.587886810302734
+      ],
+      "nop_idx": 139,
+      "nop_str": "add bh, 0x89h\nsub bh, 0x89h\n",
+      "score_before": 0.9449579119682312,
+      "score_after": 0.9572319984436035
+    },
+    {
+      "func_indices": [
+        2,
+        1,
+        1,
+        2,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        3,
+        2,
+        7,
+        1,
+        2
+      ],
+      "block_importances": [
+        141.2611541748047,
+        77.73114776611328,
+        77.38805389404297,
+        75.71707153320312,
+        57.47092819213867,
+        24.250919342041016
+      ],
+      "nop_idx": 107,
+      "nop_str": "xor dx, 0x89h\nxor dx, 0x89h\n",
+      "score_before": 0.9572319984436035,
+      "score_after": 0.9705061912536621
+    },
+    {
+      "func_indices": [
+        2,
+        1,
+        1,
+        2,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        3,
+        2,
+        7,
+        1,
+        2
+      ],
+      "block_importances": [
+        144.32225036621094,
+        80.8360366821289,
+        80.33849334716797,
+        75.06034088134766,
+        58.79710006713867,
+        23.843097686767578
+      ],
+      "nop_idx": 56,
+      "nop_str": "dec cl\ninc cl\n",
+      "score_before": 0.9705061912536621,
+      "score_after": 0.9784665703773499
+    },
+    {
+      "func_indices": [
+        2,
+        1,
+        1,
+        2,
+        1,
+        0
+      ],
+      "block_indices": [
+        6,
+        3,
+        2,
+        7,
+        1,
+        2
+      ],
+      "block_importances": [
+        145.36965942382812,
+        84.90668487548828,
+        84.51798248291016,
+        75.55795288085938,
+        61.355430603027344,
+        24.933847427368164
+      ],
+      "nop_idx": 114,
+      "nop_str": "cmp ah, ah\n",
+      "score_before": 0.9784665703773499,
+      "score_after": 0.9957923889160156
     }
   ],
-  "score_reduction_absolute": 0.06622302532196045,
-  "score_reduction_percent": 7.4541329875163305
+  "score_reduction_absolute": -0.10738557577133179,
+  "score_reduction_percent": -12.087432714661455
 }
