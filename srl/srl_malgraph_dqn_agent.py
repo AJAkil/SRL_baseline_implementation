@@ -51,12 +51,14 @@ class QNetwork(nn.Module):
         self,
         embedding_dim: int = 200,  # MalGraph's block embedding dimension
         num_nops: int = 20,        # Number of semantic NOP types
-        hidden_dim: int = 128
+        hidden_dim: int = 128,
+        max_blocks: int = 1250     # Maximum blocks to process (subsample if needed)
     ):
         super(QNetwork, self).__init__()
         self.embedding_dim = embedding_dim
         self.num_nops = num_nops
         self.action_dim = num_nops  # Action is just NOP selection
+        self.max_blocks = max_blocks
         
         # MLP layers
         self.fc1 = nn.Linear(embedding_dim, hidden_dim)
@@ -76,12 +78,20 @@ class QNetwork(nn.Module):
         Returns:
             q_values: [num_nops] or [batch, num_nops]
         """
-        # Global mean pooling over all blocks to get graph-level representation
+        # Subsample if too many blocks
         if len(block_embeddings.shape) == 2:
-            # Single graph: [num_blocks, embedding_dim] → [embedding_dim]
+            # Single graph: [num_blocks, embedding_dim]
+            if block_embeddings.shape[0] > self.max_blocks:
+                # Random subsample
+                indices = torch.randperm(block_embeddings.shape[0])[:self.max_blocks]
+                block_embeddings = block_embeddings[indices]
             x = block_embeddings.mean(dim=0)
         else:
-            # Batch: [batch, num_blocks, embedding_dim] → [batch, embedding_dim]
+            # Batch: [batch, num_blocks, embedding_dim]
+            if block_embeddings.shape[1] > self.max_blocks:
+                # Random subsample
+                indices = torch.randperm(block_embeddings.shape[1])[:self.max_blocks]
+                block_embeddings = block_embeddings[:, indices, :]
             x = block_embeddings.mean(dim=1)
         
         # MLP to predict Q-values for each NOP
@@ -90,6 +100,8 @@ class QNetwork(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.dropout(x)
         q_values = self.fc3(x)
+
+        #print(f"Q-Network forward pass: input shape {block_embeddings.shape} -> Q-values shape {q_values.shape}")
         
         return q_values
 
@@ -121,6 +133,7 @@ class  SimplifiedDQNAgent:
         target_update_freq: int = 10,
         memory_capacity: int = 1000,
         batch_size: int = 32,
+        max_blocks: int = 1250,  # Max blocks to process
         device: str = 'cuda' if torch.cuda.is_available() else 'cpu'
     ):
         """
@@ -152,8 +165,8 @@ class  SimplifiedDQNAgent:
         self.embedding_dim = embedding_dim
         
         # Build Q-networks
-        self.q_network = QNetwork(embedding_dim, num_nops, hidden_dim).to(device)
-        self.target_q_network = QNetwork(embedding_dim, num_nops, hidden_dim).to(device)
+        self.q_network = QNetwork(embedding_dim, num_nops, hidden_dim, max_blocks).to(device)
+        self.target_q_network = QNetwork(embedding_dim, num_nops, hidden_dim, max_blocks).to(device)
         
         self._update_target_network()
         
@@ -184,13 +197,14 @@ class  SimplifiedDQNAgent:
               np.exp(-1.0 * self.steps_done / self.epsilon_decay)
         return eps
     
-    def get_embeddings_from_state(self, state_dict: Dict) -> torch.Tensor:
+    def get_embeddings_from_state(self, state_dict: Dict, detach: bool = False) -> torch.Tensor:
         """
         Extract block embeddings from state.
         Embeddings are already computed by the environment using MalGraph.
         
         Args:
             state_dict: State from environment with 'block_embeddings'
+            detach: Whether to detach from computation graph (for training)
         
         Returns:
             embeddings: [num_blocks, embedding_dim]
@@ -201,6 +215,13 @@ class  SimplifiedDQNAgent:
             embeddings = state_dict['block_embeddings']
             if not isinstance(embeddings, torch.Tensor):
                 embeddings = torch.tensor(embeddings, dtype=torch.float32, device=self.device)
+            else:
+                embeddings = embeddings.to(self.device)
+            
+            # Detach from MalGraph's computation graph when training Q-network
+            if detach:
+                embeddings = embeddings.detach()
+            
             return embeddings
         else:
             raise ValueError("State must contain 'block_embeddings' from environment")
@@ -242,6 +263,11 @@ class  SimplifiedDQNAgent:
         """Store experience in replay buffer."""
         self.memory.append(Experience(state, action, reward, next_state, done))
     
+    def clear_memory(self):
+        """Clear replay buffer. Use when switching to a different malware sample."""
+        self.memory.clear()
+        print(f"Replay buffer cleared")
+    
     def train_step(self) -> Optional[float]:
         """
         Perform one training step (if enough experiences available).
@@ -256,13 +282,23 @@ class  SimplifiedDQNAgent:
         batch = random.sample(self.memory, self.batch_size)
         
         # Get embeddings from states
-        states_embeddings = torch.stack([
-            self.get_embeddings_from_state(exp.state) for exp in batch
-        ], dim=0)  # [batch_size, num_blocks, embedding_dim]
+        # Check if all samples have same number of blocks
+        state_embeddings_list = [self.get_embeddings_from_state(exp.state, detach=True) for exp in batch]
+        next_state_embeddings_list = [self.get_embeddings_from_state(exp.next_state, detach=True) for exp in batch]
         
-        next_states_embeddings = torch.stack([
-            self.get_embeddings_from_state(exp.next_state) for exp in batch
-        ], dim=0)
+        # Check sizes
+        sizes = [emb.shape[0] for emb in state_embeddings_list]
+        if len(set(sizes)) > 1:
+            # Different sizes - can't batch. Process one at a time
+            # For now, just use the first sample
+            print(f"  Warning: Variable block sizes in batch {sizes[:5]}... Using single sample.")
+            batch = [batch[0]]
+            state_embeddings_list = [state_embeddings_list[0]]
+            next_state_embeddings_list = [next_state_embeddings_list[0]]
+        
+        # Stack embeddings
+        states_embeddings = torch.stack(state_embeddings_list, dim=0)  # [batch_size, num_blocks, embedding_dim]
+        next_states_embeddings = torch.stack(next_state_embeddings_list, dim=0)
         
         # Prepare tensors
         actions = torch.tensor([

@@ -20,8 +20,9 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 from srl_malgraph_environment import SRLMalGraphEnvironment
-from srl_malgraph_dqn_agent import DQNAgent
+from srl_malgraph_dqn_agent import SimplifiedDQNAgent
 from srl_malgraph_nop_mapping import SemanticNOPMapper
+from malgraph_classifier_adapter import SRLMalGraphClassifierAdapter
 
 
 class SRLMalGraphTrainer:
@@ -38,7 +39,7 @@ class SRLMalGraphTrainer:
     def __init__(
         self,
         env: SRLMalGraphEnvironment,
-        agent: DQNAgent,
+        agent: SimplifiedDQNAgent,
         num_episodes: int = 2500,
         max_steps_per_episode: int = 50,
         eval_freq: int = 100,
@@ -159,7 +160,18 @@ class SRLMalGraphTrainer:
         for episode in tqdm(range(1, self.num_episodes + 1), desc="Training"):
             # Sample random malware
             acfg_idx = np.random.randint(0, num_samples)
-            acfg = training_acfgs[acfg_idx]
+            acfg_data = training_acfgs[acfg_idx]
+            #print(f"the acfg is {acfg}")
+
+            if 'result' in acfg_data:
+                acfg = json.loads(acfg_data['result'])
+            else:
+                acfg = acfg_data
+            
+            # Clear replay buffer when switching to new malware sample
+            # (Different samples have vastly different numbers of blocks - can't batch)
+            if episode > 1:
+                self.agent.clear_memory()
             
             # Train episode
             stats = self.train_episode(acfg, episode)
@@ -370,7 +382,7 @@ def main():
         python srl_malgraph_training.py
     """
     # Paths (adjust to your setup)
-    ACFG_DIR = "/path/to/extracted/acfgs"  # Directory with ACFG JSON files
+    ACFG_DIR = "/home/newdrive/makil/projects/SRL_Implementation/srl/test_acfgs"  # Directory with ACFG JSON files
     LOG_DIR = "./logs/srl_malgraph"
     CHECKPOINT_DIR = "./checkpoints/srl_malgraph"
     
@@ -395,45 +407,53 @@ def main():
     nop_list = nop_mapper.generate_malguise_nop_list()
     print(f"   Generated {len(nop_list)} semantic NOPs")
     
+    # Initialize classifier adapter
+    print("\n3 Initializing MalGraph classifier...")
+    classifier = SRLMalGraphClassifierAdapter(
+        use_direct_client=True,
+        threshold_type='100fpr',
+        device=None,  # Auto-detect
+        server_port=5001
+    )
+
     # Initialize environment (dummy classifier for now - replace with actual MalGraph)
-    print("\n3. Initializing environment...")
-    # env = SRLMalGraphEnvironment(
-    #     malgraph_classifier=YOUR_MALGRAPH_CLASSIFIER,
-    #     nop_mapper=nop_mapper,
-    #     threshold=THRESHOLD,
-    #     max_mutations=MAX_STEPS,
-    #     top_k_blocks=K_TOP_BLOCKS,
-    #     reward_type='continuous'
-    # )
+    print("\n4. Initializing environment...")
+    env = SRLMalGraphEnvironment(
+        malgraph_classifier=classifier,
+        nop_mapper=nop_mapper,
+        threshold=0.14346,  # 100fpr threshold
+        max_mutations=30,
+        top_k_blocks=6,  # Consider top 6 important blocks
+        reward_type='continuous',
+        terminal_bonus=10.0,
+        sortpooling_method='l2_norm'  # Non-trainable for baseline
+    )
     print("   [NOTE: Replace with actual MalGraph classifier]")
     
     # Initialize agent
     print("\n4. Initializing DQN agent...")
-    agent = DQNAgent(
+    agent = SimplifiedDQNAgent(
         num_nops=len(nop_list),
-        k=K_TOP_BLOCKS,
-        input_dim=11,
-        latent_dims=[32, 32, 32],
-        hidden_dim=128,
-        lr=LR,
-        gamma=GAMMA,
-        batch_size=BATCH_SIZE
+        embedding_dim=200,
+        batch_size=8,          # Smaller batch = faster training start
+        epsilon_start=0.9,     # Start with some exploitation (10% greedy)
+        epsilon_decay=1000,    # Slower decay
     )
     
     # Initialize trainer
     print("\n5. Initializing trainer...")
-    # trainer = SRLMalGraphTrainer(
-    #     env=env,
-    #     agent=agent,
-    #     num_episodes=NUM_EPISODES,
-    #     max_steps_per_episode=MAX_STEPS,
-    #     log_dir=LOG_DIR,
-    #     checkpoint_dir=CHECKPOINT_DIR
-    # )
+    trainer = SRLMalGraphTrainer(
+        env=env,
+        agent=agent,
+        num_episodes=NUM_EPISODES,
+        max_steps_per_episode=MAX_STEPS,
+        log_dir=LOG_DIR,
+        checkpoint_dir=CHECKPOINT_DIR
+    )
     
     # Start training
     print("\n6. Starting training...")
-    # trainer.train(acfgs)
+    trainer.train(acfgs)
     
     print("\n[NOTE: Uncomment trainer.train() after setting up MalGraph classifier]")
     print("Training script ready!")

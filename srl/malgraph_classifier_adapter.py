@@ -152,7 +152,7 @@ class SRLMalGraphClassifierAdapter:
             # DirectMalgraphClient expects bytes, but we have ACFG JSON
             # We bypass get_score and call the model directly
             score = self.classifier.model(acfg_json)
-            print(f"DirectMalgraphClient score: {score}")
+            #print(f"DirectMalgraphClient score: {score}")
         else:
             # MalgraphServerFeature
             score = self.classifier(acfg_json)

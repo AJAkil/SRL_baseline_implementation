@@ -174,9 +174,9 @@ class SRLMalGraphEnvironment:
             # data.x has shape [num_blocks, embedding_dim], we compute norm across dim=1 (embedding dimension)
             importance_scores = torch.norm(data.x, dim=1).cpu().numpy()
             
-            print(f"Block embeddings shape: {data.x.shape}")
-            print(f"Importance scores shape: {importance_scores.shape}")
-            print(f"Top 5 importance scores: {sorted(importance_scores, reverse=True)[:5]}")
+            # print(f"Block embeddings shape: {data.x.shape}")
+            # print(f"Importance scores shape: {importance_scores.shape}")
+            # print(f"Top 5 importance scores: {sorted(importance_scores, reverse=True)[:5]}")
         
         # Map scores back to (func_idx, block_idx)
         block_scores = []
@@ -191,10 +191,10 @@ class SRLMalGraphEnvironment:
         # Sort by importance (descending) and take top-k
         block_scores.sort(key=lambda x: x[2], reverse=True)
 
-        # print the sorted block scores
-        print("Top 10 important blocks (func_idx, block_idx, score):")
-        for i, (func_idx, block_idx, score) in enumerate(block_scores[:10]):
-            print(f"  {i+1}. Function {func_idx}, Block {block_idx} (importance: {score:.4f})") 
+        # # print the sorted block scores
+        # print("Top 10 important blocks (func_idx, block_idx, score):")
+        # for i, (func_idx, block_idx, score) in enumerate(block_scores[:10]):
+        #     print(f"  {i+1}. Function {func_idx}, Block {block_idx} (importance: {score:.4f})") 
         
         return block_scores[:self.top_k_blocks]
     
@@ -404,7 +404,7 @@ class SRLMalGraphEnvironment:
         nop_data = self.nop_list[nop_idx]
         nop_str = nop_data['nop_str']
 
-        print("chosen nop_str: ", nop_str)
+        #print("chosen nop_str: ", nop_str)
 
         # Store embeddings BEFORE mutation for verification
         embeddings_before = self.get_current_state_embedding().detach().cpu()
@@ -424,8 +424,8 @@ class SRLMalGraphEnvironment:
         embeddings_diff = torch.norm(embeddings_after - embeddings_before)
         if embeddings_diff < 1e-6:
             print(f"  ⚠️  WARNING: Embeddings unchanged after mutation! Diff: {embeddings_diff:.8f}")
-        else:
-            print(f"  ✓ Embeddings changed after mutation. L2 diff: {embeddings_diff:.6f}")
+        # else:
+        #     print(f"  ✓ Embeddings changed after mutation. L2 diff: {embeddings_diff:.6f}")
         
         # Update score
         self.previous_score = self.current_score
@@ -486,10 +486,10 @@ class SRLMalGraphEnvironment:
         
         # Debug: Verify mutation actually happened
         features_after = target_features
-        if features_before != features_after:
-            print(f"  ✓ Block F{func_idx}.B{block_idx} mutated: {features_before} → {features_after}")
-        else:
-            print(f"  ✗ WARNING: Block F{func_idx}.B{block_idx} NOT mutated!")
+        # if features_before != features_after:
+        #     print(f"  ✓ Block F{func_idx}.B{block_idx} mutated: {features_before} → {features_after}")
+        # else:
+        #     print(f"  ✗ WARNING: Block F{func_idx}.B{block_idx} NOT mutated!")
         
         # Verify self.current_acfg was updated (should be same reference)
         assert self.current_acfg['acfg_list'][func_idx]['block_features'][block_idx] is target_features, \
