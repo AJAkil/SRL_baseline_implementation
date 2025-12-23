@@ -406,6 +406,8 @@ class SRLMalGraphEnvironment:
 
         print("chosen nop_str: ", nop_str)
 
+        # Store embeddings BEFORE mutation for verification
+        embeddings_before = self.get_current_state_embedding().detach().cpu()
 
         for block_selection_idx in range(len(self.important_blocks)):
             func_idx, block_idx, importance = self.important_blocks[block_selection_idx]
@@ -414,6 +416,16 @@ class SRLMalGraphEnvironment:
         
         # # Apply mutation using NOP mapper
         # self._mutate_block(func_idx, block_idx, nop_str)
+        
+        # Verify embeddings AFTER mutation have changed
+        embeddings_after = self.get_current_state_embedding().detach().cpu()
+        
+        # Check if embeddings changed
+        embeddings_diff = torch.norm(embeddings_after - embeddings_before)
+        if embeddings_diff < 1e-6:
+            print(f"  ⚠️  WARNING: Embeddings unchanged after mutation! Diff: {embeddings_diff:.8f}")
+        else:
+            print(f"  ✓ Embeddings changed after mutation. L2 diff: {embeddings_diff:.6f}")
         
         # Update score
         self.previous_score = self.current_score
