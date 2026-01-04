@@ -67,41 +67,30 @@ class QNetwork(nn.Module):
         
         self.dropout = nn.Dropout(0.2)
     
-    def forward(self, block_embeddings: torch.Tensor) -> torch.Tensor:
+    def forward(self, pooled_embeddings: torch.Tensor) -> torch.Tensor:
         """
-        Compute Q-values for each NOP type.
+        Compute Q-values for each NOP type from POOLED embeddings.
         
         Args:
-            block_embeddings: [num_blocks, embedding_dim] or [batch, num_blocks, embedding_dim]
-                             Embeddings from MalGraph's CFG encoder
+            pooled_embeddings: [embedding_dim] or [batch, embedding_dim]
+                              Already mean-pooled CFG embeddings
         
         Returns:
             q_values: [num_nops] or [batch, num_nops]
+                     Q-value for each NOP action
         """
-        # Subsample if too many blocks
-        if len(block_embeddings.shape) == 2:
-            # Single graph: [num_blocks, embedding_dim]
-            if block_embeddings.shape[0] > self.max_blocks:
-                # Random subsample
-                indices = torch.randperm(block_embeddings.shape[0])[:self.max_blocks]
-                block_embeddings = block_embeddings[indices]
-            x = block_embeddings.mean(dim=0)
-        else:
-            # Batch: [batch, num_blocks, embedding_dim]
-            if block_embeddings.shape[1] > self.max_blocks:
-                # Random subsample
-                indices = torch.randperm(block_embeddings.shape[1])[:self.max_blocks]
-                block_embeddings = block_embeddings[:, indices, :]
-            x = block_embeddings.mean(dim=1)
+        # Input is already pooled to fixed size [embedding_dim] or [batch, embedding_dim]
+        x = pooled_embeddings
         
         # MLP to predict Q-values for each NOP
+        # [embedding_dim] -> [128]
         x = F.relu(self.fc1(x))
         x = self.dropout(x)
+        # [128] -> [128]
         x = F.relu(self.fc2(x))
         x = self.dropout(x)
+        # [128] -> [num_nops]
         q_values = self.fc3(x)
-
-        #print(f"Q-Network forward pass: input shape {block_embeddings.shape} -> Q-values shape {q_values.shape}")
         
         return q_values
 
@@ -134,6 +123,7 @@ class  SimplifiedDQNAgent:
         memory_capacity: int = 1000,
         batch_size: int = 32,
         max_blocks: int = 1250,  # Max blocks to process
+        optimizer_type: str = 'adam',  # 'adam' or 'rmsprop'
         device: str = 'cuda' if torch.cuda.is_available() else 'cpu'
     ):
         """
@@ -151,6 +141,7 @@ class  SimplifiedDQNAgent:
             target_update_freq: Target network update frequency
             memory_capacity: Replay buffer size
             batch_size: Training batch size
+            optimizer_type: 'adam' or 'rmsprop' (SRL paper uses rmsprop)
             device: 'cuda' or 'cpu'
         """
         self.device = device
@@ -170,11 +161,17 @@ class  SimplifiedDQNAgent:
         
         self._update_target_network()
         
-        # Optimizer
-        self.optimizer = torch.optim.Adam(
-            self.q_network.parameters(),
-            lr=lr
-        )
+        # Optimizer (SRL paper uses RMSProp)
+        if optimizer_type.lower() == 'rmsprop':
+            self.optimizer = torch.optim.RMSprop(
+                self.q_network.parameters(),
+                lr=lr
+            )
+        else:
+            self.optimizer = torch.optim.Adam(
+                self.q_network.parameters(),
+                lr=lr
+            )
         
         # Replay buffer
         self.memory = deque(maxlen=memory_capacity)
@@ -184,6 +181,7 @@ class  SimplifiedDQNAgent:
         self.learn_step_counter = 0
         
         print(f"Simplified DQN Agent initialized on {device}")
+        print(f"Optimizer: {optimizer_type.upper()}, Batch size: {batch_size}, Memory: {memory_capacity}")
         print(f"Action space: {num_nops} NOPs")
         print(f"Embedding dimension: {embedding_dim}")
     
@@ -230,6 +228,9 @@ class  SimplifiedDQNAgent:
         """
         Select action (NOP index) using epsilon-greedy policy.
         
+        NOTE: This is for MDP action selection - uses CURRENT state from environment.
+        Completely separate from replay buffer (which is only for Q-network training).
+        
         Args:
             state_dict: Current state with block embeddings
             explore: Whether to use epsilon-greedy (False for evaluation)
@@ -246,8 +247,12 @@ class  SimplifiedDQNAgent:
         else:
             # Greedy NOP selection
             with torch.no_grad():
+                # Get raw embeddings from environment: [num_blocks, embedding_dim]
                 embeddings = self.get_embeddings_from_state(state_dict)
-                q_values = self.q_network(embeddings)
+                # Pool to fixed size: [num_blocks, embedding_dim] -> [embedding_dim]
+                pooled = embeddings.mean(dim=0)
+                # Forward through Q-network: [embedding_dim] -> [num_nops]
+                q_values = self.q_network(pooled)
                 nop_idx = q_values.argmax().item()
         
         return nop_idx
@@ -260,8 +265,31 @@ class  SimplifiedDQNAgent:
         next_state: Dict,
         done: bool
     ):
-        """Store experience in replay buffer."""
-        self.memory.append(Experience(state, action, reward, next_state, done))
+        """
+        Store experience in replay buffer with POOLED embeddings.
+        
+        This fixes batching: instead of storing variable-length [num_blocks, embedding_dim],
+        we pool to fixed-size [embedding_dim] so all experiences can be batched together.
+        
+        SRL paper: Drop negative rewards with 50% probability to focus on successful mutations.
+        
+        NOTE: This is ONLY for Q-network training, not for MDP progression.
+        The environment still uses raw embeddings for block importance computation.
+        """
+        # SRL paper: Drop negative reward experiences with 50% probability
+        if reward < 0 and random.random() < 0.5:
+            return  # Don't store this experience
+        
+        # Extract raw embeddings: [num_blocks, embedding_dim]
+        state_embeddings = self.get_embeddings_from_state(state, detach=True)
+        next_state_embeddings = self.get_embeddings_from_state(next_state, detach=True)
+        
+        # Pool to fixed size: [num_blocks, embedding_dim] -> [embedding_dim]
+        state_pooled = state_embeddings.mean(dim=0).cpu()  # Store on CPU to save GPU memory
+        next_state_pooled = next_state_embeddings.mean(dim=0).cpu()
+        
+        # Store pooled embeddings (fixed size) instead of raw embeddings (variable size)
+        self.memory.append(Experience(state_pooled, action, reward, next_state_pooled, done))
     
     def clear_memory(self):
         """Clear replay buffer. Use when switching to a different malware sample."""
@@ -270,7 +298,10 @@ class  SimplifiedDQNAgent:
     
     def train_step(self) -> Optional[float]:
         """
-        Perform one training step (if enough experiences available).
+        Perform one training step using experiences from replay buffer.
+        
+        NOTE: This is ONLY for Q-network training, not for MDP state transitions.
+        The buffer stores past experiences (s, a, r, s') which may be from many episodes ago.
         
         Returns:
             Loss value or None if not enough experiences
@@ -278,50 +309,45 @@ class  SimplifiedDQNAgent:
         if len(self.memory) < self.batch_size:
             return None
         
-        # Sample batch
+        # Sample random minibatch from replay buffer
+        # (decorrelates experiences for stable training)
         batch = random.sample(self.memory, self.batch_size)
         
-        # Get embeddings from states
-        # Check if all samples have same number of blocks
-        state_embeddings_list = [self.get_embeddings_from_state(exp.state, detach=True) for exp in batch]
-        next_state_embeddings_list = [self.get_embeddings_from_state(exp.next_state, detach=True) for exp in batch]
+        # Extract pooled embeddings from experiences
+        # Each exp.state is [embedding_dim] (already pooled during storage)
+        states = torch.stack([exp.state for exp in batch]).to(self.device)  # [batch, embedding_dim]
+        next_states = torch.stack([exp.next_state for exp in batch]).to(self.device)  # [batch, embedding_dim]
         
-        # Check sizes
-        sizes = [emb.shape[0] for emb in state_embeddings_list]
-        if len(set(sizes)) > 1:
-            # Different sizes - can't batch. Process one at a time
-            # For now, just use the first sample
-            print(f"  Warning: Variable block sizes in batch {sizes[:5]}... Using single sample.")
-            batch = [batch[0]]
-            state_embeddings_list = [state_embeddings_list[0]]
-            next_state_embeddings_list = [next_state_embeddings_list[0]]
-        
-        # Stack embeddings
-        states_embeddings = torch.stack(state_embeddings_list, dim=0)  # [batch_size, num_blocks, embedding_dim]
-        next_states_embeddings = torch.stack(next_state_embeddings_list, dim=0)
-        
-        # Prepare tensors
-        actions = torch.tensor([
-            exp.action for exp in batch
-        ], dtype=torch.long, device=self.device)
-        
+        # Extract other components
+        # actions: [batch] - NOP index for each experience
+        actions = torch.tensor([exp.action for exp in batch], dtype=torch.long, device=self.device)
+        # rewards: [batch] - reward for each transition
         rewards = torch.tensor([exp.reward for exp in batch], dtype=torch.float32, device=self.device)
+        # dones: [batch] - whether episode terminated
         dones = torch.tensor([exp.done for exp in batch], dtype=torch.float32, device=self.device)
         
-        # Compute Q(s, a)
-        q_values = self.q_network(states_embeddings)
-        q_values = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
+        # ========== Compute Q(s, a) for actions taken ==========
+        # Forward through Q-network: [batch, embedding_dim] -> [batch, num_nops]
+        q_values_all = self.q_network(states)  # Q-values for ALL actions
         
-        # Compute target Q-values
+        # Select Q-values for actions that were actually taken
+        # q_values_all: [batch, num_nops] - Q-values for ALL actions
+        # actions: [batch] - which action was taken in each experience
+        # We need to index q_values_all to get Q(s, a) for the specific action taken
+        q_values = q_values_all.gather(1, actions.unsqueeze(1)).squeeze(1)  # [batch]
+        # ========== Compute target Q-values: r + γ max_a' Q(s', a') ==========
         with torch.no_grad():
-            next_q_values = self.target_q_network(next_states_embeddings)
-            max_next_q = next_q_values.max(1)[0]
-            target_q = rewards + (1 - dones) * self.gamma * max_next_q
+            # Forward through target network: [batch, embedding_dim] -> [batch, num_nops]
+            next_q_values_all = self.target_q_network(next_states)
+            # Get max Q-value for next state: [batch, num_nops] -> [batch]
+            max_next_q = next_q_values_all.max(1)[0]  # max over action dimension
+            # Bellman target: r + γ * max_a' Q(s', a') if not done, else just r
+            target_q = rewards + (1 - dones) * self.gamma * max_next_q  # [batch]
         
-        # Compute loss
+        # ========== Compute loss and optimize ==========
+        # MSE loss: (Q(s,a) - target)^2
         loss = F.mse_loss(q_values, target_q)
         
-        # Optimize
         self.optimizer.zero_grad()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(
@@ -330,7 +356,7 @@ class  SimplifiedDQNAgent:
         )
         self.optimizer.step()
         
-        # Update target network
+        # Update target network periodically
         self.learn_step_counter += 1
         if self.learn_step_counter % self.target_update_freq == 0:
             self._update_target_network()

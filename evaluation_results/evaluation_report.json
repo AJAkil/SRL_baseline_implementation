@@ -1,0 +1,476 @@
+{
+  "total_samples": 10,
+  "successful_attacks": 5,
+  "attack_success_rate": 0.5,
+  "avg_mutations": 5.9,
+  "avg_score_reduction": -0.07462386628612876,
+  "avg_final_score": 0.7578465571627021,
+  "median_mutations": 1.0,
+  "budget_exceeded_count": 0,
+  "per_sample_results": [
+    {
+      "sample_idx": 0,
+      "initial_score": 0.038950201123952866,
+      "final_score": 0.2524505853652954,
+      "score_reduction": -0.21350038424134254,
+      "num_mutations": 1,
+      "bypassed": true,
+      "budget_exceeded": false,
+      "mutation_log": [
+        {
+          "step": 0,
+          "action": 27,
+          "reward": 10.0,
+          "score": 0.2524505853652954
+        }
+      ]
+    },
+    {
+      "sample_idx": 1,
+      "initial_score": 0.9927144646644592,
+      "final_score": 0.9935293793678284,
+      "score_reduction": -0.0008149147033691406,
+      "num_mutations": 1,
+      "bypassed": false,
+      "budget_exceeded": false,
+      "mutation_log": [
+        {
+          "step": 0,
+          "action": 21,
+          "reward": 0.0,
+          "score": 0.9935293793678284
+        }
+      ]
+    },
+    {
+      "sample_idx": 2,
+      "initial_score": 0.9121129512786865,
+      "final_score": 0.9993715882301331,
+      "score_reduction": -0.08725863695144653,
+      "num_mutations": 4,
+      "bypassed": false,
+      "budget_exceeded": false,
+      "mutation_log": [
+        {
+          "step": 0,
+          "action": 3,
+          "reward": 0.0,
+          "score": 0.9691122174263
+        },
+        {
+          "step": 1,
+          "action": 3,
+          "reward": 0.0,
+          "score": 0.9909676909446716
+        },
+        {
+          "step": 2,
+          "action": 20,
+          "reward": 1.0,
+          "score": 0.9719751477241516
+        },
+        {
+          "step": 3,
+          "action": 26,
+          "reward": 0.0,
+          "score": 0.9993715882301331
+        }
+      ]
+    },
+    {
+      "sample_idx": 3,
+      "initial_score": 1.0,
+      "final_score": 1.0,
+      "score_reduction": 0.0,
+      "num_mutations": 13,
+      "bypassed": false,
+      "budget_exceeded": false,
+      "mutation_log": [
+        {
+          "step": 0,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 1,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 2,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 3,
+          "action": 13,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 4,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 5,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 6,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 7,
+          "action": 13,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 8,
+          "action": 26,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 9,
+          "action": 21,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 10,
+          "action": 13,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 11,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 12,
+          "action": 26,
+          "reward": 0.0,
+          "score": 1.0
+        }
+      ]
+    },
+    {
+      "sample_idx": 4,
+      "initial_score": 0.4410121738910675,
+      "final_score": 0.8843067288398743,
+      "score_reduction": -0.44329455494880676,
+      "num_mutations": 1,
+      "bypassed": true,
+      "budget_exceeded": false,
+      "mutation_log": [
+        {
+          "step": 0,
+          "action": 3,
+          "reward": 10.0,
+          "score": 0.8843067288398743
+        }
+      ]
+    },
+    {
+      "sample_idx": 5,
+      "initial_score": 1.0,
+      "final_score": 1.0,
+      "score_reduction": 0.0,
+      "num_mutations": 30,
+      "bypassed": false,
+      "budget_exceeded": false,
+      "mutation_log": [
+        {
+          "step": 0,
+          "action": 4,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 1,
+          "action": 13,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 2,
+          "action": 13,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 3,
+          "action": 3,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 4,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 5,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 6,
+          "action": 3,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 7,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 8,
+          "action": 3,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 9,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 10,
+          "action": 13,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 11,
+          "action": 13,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 12,
+          "action": 16,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 13,
+          "action": 13,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 14,
+          "action": 26,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 15,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 16,
+          "action": 3,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 17,
+          "action": 13,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 18,
+          "action": 3,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 19,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 20,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 21,
+          "action": 16,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 22,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 23,
+          "action": 13,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 24,
+          "action": 13,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 25,
+          "action": 21,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 26,
+          "action": 13,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 27,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 28,
+          "action": 20,
+          "reward": 0.0,
+          "score": 1.0
+        },
+        {
+          "step": 29,
+          "action": 13,
+          "reward": 0.0,
+          "score": 1.0
+        }
+      ]
+    },
+    {
+      "sample_idx": 6,
+      "initial_score": 0.5320590734481812,
+      "final_score": 0.5576625466346741,
+      "score_reduction": -0.02560347318649292,
+      "num_mutations": 1,
+      "bypassed": true,
+      "budget_exceeded": false,
+      "mutation_log": [
+        {
+          "step": 0,
+          "action": 20,
+          "reward": 10.0,
+          "score": 0.5576625466346741
+        }
+      ]
+    },
+    {
+      "sample_idx": 7,
+      "initial_score": 0.9060364365577698,
+      "final_score": 0.8696709871292114,
+      "score_reduction": 0.03636544942855835,
+      "num_mutations": 1,
+      "bypassed": true,
+      "budget_exceeded": false,
+      "mutation_log": [
+        {
+          "step": 0,
+          "action": 13,
+          "reward": 11.0,
+          "score": 0.8696709871292114
+        }
+      ]
+    },
+    {
+      "sample_idx": 8,
+      "initial_score": 0.009687314741313457,
+      "final_score": 0.02444266341626644,
+      "score_reduction": -0.014755348674952984,
+      "num_mutations": 1,
+      "bypassed": true,
+      "budget_exceeded": false,
+      "mutation_log": [
+        {
+          "step": 0,
+          "action": 20,
+          "reward": 10.0,
+          "score": 0.02444266341626644
+        }
+      ]
+    },
+    {
+      "sample_idx": 9,
+      "initial_score": 0.9996542930603027,
+      "final_score": 0.9970310926437378,
+      "score_reduction": 0.0026232004165649414,
+      "num_mutations": 6,
+      "bypassed": false,
+      "budget_exceeded": false,
+      "mutation_log": [
+        {
+          "step": 0,
+          "action": 21,
+          "reward": 1.0,
+          "score": 0.9994664788246155
+        },
+        {
+          "step": 1,
+          "action": 20,
+          "reward": 0.0,
+          "score": 0.9995443224906921
+        },
+        {
+          "step": 2,
+          "action": 13,
+          "reward": 1.0,
+          "score": 0.9990930557250977
+        },
+        {
+          "step": 3,
+          "action": 13,
+          "reward": 1.0,
+          "score": 0.9984405636787415
+        },
+        {
+          "step": 4,
+          "action": 13,
+          "reward": 1.0,
+          "score": 0.997383177280426
+        },
+        {
+          "step": 5,
+          "action": 13,
+          "reward": 1.0,
+          "score": 0.9970310926437378
+        }
+      ]
+    }
+  ]
+}

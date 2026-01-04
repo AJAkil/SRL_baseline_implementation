@@ -39,10 +39,11 @@ class SemanticNOPMapper:
     
     # Opcode categories from MalGraph's graph_analysis_ida.py
     ARITHMETIC_OPS = {'add', 'sub', 'div', 'imul', 'idiv', 'mul', 'shl', 'dec', 'inc',
-                      'addu', 'addi', 'addiu', 'mult', 'multu', 'divu'}
+                      'addu', 'addi', 'addiu', 'mult', 'multu', 'divu', 'neg', 'lea'}
     
     LOGIC_OPS = {'and', 'andn', 'andnpd', 'andpd', 'andps', 'andnps', 'test', 'xor', 
-                 'xorpd', 'pslld', 'andi', 'or', 'ori', 'nor', 'slt', 'slti', 'sltu'}
+                 'xorpd', 'pslld', 'andi', 'or', 'ori', 'nor', 'slt', 'slti', 'sltu',
+                 'not'}
     
     TRANSFER_OPS = {'jmp', 'jz', 'jnz', 'js', 'je', 'jne', 'jg', 'jle', 'jge', 'ja', 
                     'jnc', 'jb', 'jl', 'jnb', 'jno', 'jnp', 'jns', 'jo', 'jp',
@@ -84,7 +85,10 @@ class SemanticNOPMapper:
                 'vmovddup', 'vmovdqa', 'vmovdqu', 'vmovhps', 'vmovlhps',
                 'vmovntdq', 'vmovntpd', 'vmovntps', 'vmovntsd',
                 'vmovsd', 'vmovsldup', 'vmovss', 'vmovupd', 'vmovups',
-                'vmovhlps', 'vmovlps', 'vmovq', 'vmovshdup'}
+                'vmovhlps', 'vmovlps', 'vmovq', 'vmovshdup',
+                # SRL paper additions
+                'xchg', 'bswap', 'setg', 'seta', 'setl', 'sets', 'seto', 
+                'setp', 'setns', 'setnp', 'setno'}
     
     TERMINATION_OPS = {'end', 'iret', 'iretw', 'retf', 'reti', 'retfw', 'retn', 
                        'retnw', 'sysexit', 'sysret', 'xabort', 'ret'}
@@ -92,6 +96,8 @@ class SemanticNOPMapper:
     DATA_DEF_OPS = {'dd', 'db', 'dw', 'dq', 'dt', 'extrn', 'unicode'}
     
     CALL_OPS = {'call', 'jal', 'jalr'}
+    
+    STACK_OPS = {'push', 'pop', 'pushf', 'popf', 'pusha', 'popa', 'pushad', 'popad'}
     
     def __init__(self):
         """Initialize the NOP mapper."""
@@ -212,8 +218,8 @@ class SemanticNOPMapper:
             if opcode in self.TERMINATION_OPS:
                 features[9] += 1  # numTermIs
             
-            if opcode in self.DATA_DEF_OPS:
-                features[10] += 1  # numDefIs
+            if opcode in self.DATA_DEF_OPS or opcode in self.STACK_OPS:
+                features[10] += 1  # numDefIs (stack ops count as data definition)
         
         # Cache result
         self.nop_cache[nop_str] = features.copy()
@@ -272,69 +278,118 @@ class SemanticNOPMapper:
     
     def generate_malguise_nop_list(self) -> List[Dict[str, any]]:
         """
-        Generate full list of MalGuise semantic NOPs with feature increments.
+        Generate EXACTLY 28 semantic NOPs from SRL paper Table 5.
+        
+        100% faithful to the paper - no variations, no extra NOPs.
+        Uses eax as the default register for consistency.
         
         Returns:
-            List of dicts with 'nop_str' and 'features' keys
+            List of exactly 28 dicts with 'nop_str', 'features', and 'id' keys
         """
         nop_list = []
         
-        # Register lists from MalGuise
-        all_reg_list = ['eax', 'ebx', 'ecx', 'edx', 'ch', 'cl', 'ax', 'bx', 
-                        'cx', 'dx', 'ah', 'al', 'bh', 'bl', 'dh', 'dl']
-        reg_list_32_16 = ['eax', 'ebx', 'ecx', 'edx', 'ax', 'bx', 'cx', 'dx']
-        reg_list_32 = ['eax', 'ebx', 'ecx', 'edx']
-        
-        # Instruction templates
-        ins_all = [
-            'mov reg, reg\n',
-            'dec reg\ninc reg\n',
-            'xchg reg, reg\n',
-            'test reg, reg\n',
-            'cmp reg, reg\n',
-            'or reg, reg\n',
-            'xor reg, 0xccefh\nxor reg, 0xccefh\n',
-            'add reg, 0x89h\nsub reg, 0x89h\n',
-            'xor reg, 0x89h\nxor reg, 0x89h\n',
-            'and reg, reg\n',
-            'add reg, 0xccefh\nsub reg, 0xccefh\n'
+        # EXACTLY 28 NOPs from SRL paper Table 5
+        # Using eax as default register for all register-based NOPs
+        srl_nops = [
+            # ID 1: NOP
+            ('nop\n', 1, 'NOP'),
+            
+            # ID 2: SUB
+            ('sub eax, 0x0\n', 2, 'SUB'),
+            
+            # ID 3: ADD
+            ('add eax, 0x0h\n', 3, 'ADD'),
+            
+            # ID 4: LEA
+            ('lea eax, [eax]\n', 4, 'LEA'),
+            
+            # ID 5: MOV
+            ('mov eax, eax\n', 5, 'MOV'),
+            
+            # ID 6: XCHG
+            ('xchg eax, eax\n', 6, 'XCHG'),
+            
+            # ID 7: CMOVO
+            ('cmovo eax, eax\n', 7, 'CMOVO'),
+            
+            # ID 8: CMOVP
+            ('cmovp eax, eax\n', 8, 'CMOVP'),
+            
+            # ID 9: CMOVA
+            ('cmova eax, eax\n', 9, 'CMOVA'),
+            
+            # ID 10: CMOVG
+            ('cmovg eax, eax\n', 10, 'CMOVG'),
+            
+            # ID 11: CMOVS
+            ('cmovs eax, eax\n', 11, 'CMOVS'),
+            
+            # ID 12: CMOVL
+            ('cmovl eax, eax\n', 12, 'CMOVL'),
+            
+            # ID 13: CMOVNS
+            ('cmovns eax, eax\n', 13, 'CMOVNS'),
+            
+            # ID 14: CMOVNP
+            ('cmovnp eax, eax\n', 14, 'CMOVNP'),
+            
+            # ID 15: CMOVNO
+            ('cmovno eax, eax\n', 15, 'CMOVNO'),
+            
+            # ID 16: ADD,SUB
+            ('add eax, 0x0\nsub eax, 0x0\n', 16, 'ADD,SUB'),
+            
+            # ID 17: SUB,ADD
+            ('sub eax, 0x0\nadd eax, 0x0\n', 17, 'SUB,ADD'),
+            
+            # ID 18: NEG,NEG
+            ('neg eax\nneg eax\n', 18, 'NEG,NEG'),
+            
+            # ID 19: NOT,NOT
+            ('not eax\nnot eax\n', 19, 'NOT,NOT'),
+            
+            # ID 20: PUSH,POP
+            ('push eax\npop eax\n', 20, 'PUSH,POP'),
+            
+            # ID 21: PUSHF,POPF
+            ('pushf\npopf\n', 21, 'PUSHF,POPF'),
+            
+            # ID 22: XCHG,XCHG
+            ('xchg eax, eax\nxchg eax, eax\n', 22, 'XCHG,XCHG'),
+            
+            # ID 23: BSWAP,BSWAP
+            ('bswap eax\nbswap eax\n', 23, 'BSWAP,BSWAP'),
+            
+            # ID 24: PUSH,NOT,POP
+            ('push eax\nnot eax\npop eax\n', 24, 'PUSH,NOT,POP'),
+            
+            # ID 25: XOR,XOR,XOR
+            ('xor eax, 0xccefh\nxor eax, 0xccefh\nxor eax, 0xccefh\n', 25, 'XOR,XOR,XOR'),
+            
+            # ID 26: MOV,ADD,MOV
+            ('mov eax, eax\nadd eax, 0x0\nmov eax, eax\n', 26, 'MOV,ADD,MOV'),
+            
+            # ID 27: INC,PUSH,DEC,DEC
+            ('inc eax\npush eax\ndec eax\ndec eax\n', 27, 'INC,PUSH,DEC,DEC'),
+            
+            # ID 28: MOV,CMP,SETG,MOVZX,MOV,MOV
+            ('mov eax, eax\ncmp eax, eax\nsetg al\nmovzx eax, al\nmov eax, eax\nmov eax, eax\n', 
+             28, 'MOV,CMP,SETG,MOVZX,MOV,MOV'),
         ]
-        ins_32_16 = ['push reg\npop reg\n']
-        ins_32 = ['bswap reg\nbswap reg\n']
         
-        # Generate all combinations
-        for reg in all_reg_list:
-            for ins in ins_all:
-                nop_str = ins.replace('reg', reg)
-                features = self.compute_feature_increment(nop_str)
-                nop_list.append({
-                    'nop_str': nop_str,
-                    'features': features,
-                    'register': reg,
-                    'template': ins
-                })
+        # Generate exactly 28 NOPs
+        for nop_str, nop_id, nop_name in srl_nops:
+            features = self.compute_feature_increment(nop_str)
+            nop_list.append({
+                'nop_str': nop_str,
+                'features': features,
+                'id': nop_id,
+                'name': nop_name
+            })
         
-        for reg in reg_list_32_16:
-            for ins in ins_32_16:
-                nop_str = ins.replace('reg', reg)
-                features = self.compute_feature_increment(nop_str)
-                nop_list.append({
-                    'nop_str': nop_str,
-                    'features': features,
-                    'register': reg,
-                    'template': ins
-                })
+        assert len(nop_list) == 28, f"Expected 28 NOPs, got {len(nop_list)}"
         
-        for reg in reg_list_32:
-            for ins in ins_32:
-                nop_str = ins.replace('reg', reg)
-                features = self.compute_feature_increment(nop_str)
-                nop_list.append({
-                    'nop_str': nop_str,
-                    'features': features,
-                    'register': reg,
-                    'template': ins
-                })
+        print(f"Generated exactly {len(nop_list)} semantic NOPs from SRL paper Table 5")
         
         return nop_list
     

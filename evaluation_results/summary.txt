@@ -1,0 +1,14 @@
+================================================================================
+SRL-MalGraph Evaluation Summary
+================================================================================
+Checkpoint: /home/newdrive/makil/projects/SRL_Implementation/checkpoints/srl_malgraph/checkpoint_ep20.pt
+Test Set: /home/newdrive/makil/projects/SRL_Implementation/srl/test_acfgs
+Total Samples: 10
+Successful Attacks: 5
+Attack Success Rate (ASR): 50.00%
+Average Mutations: 5.90
+Median Mutations: 1
+Average Score Reduction: -0.0746
+Average Final Score: 0.7578
+Budget Exceeded: 0 samples
+================================================================================

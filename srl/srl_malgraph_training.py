@@ -168,10 +168,10 @@ class SRLMalGraphTrainer:
             else:
                 acfg = acfg_data
             
-            # Clear replay buffer when switching to new malware sample
-            # (Different samples have vastly different numbers of blocks - can't batch)
-            if episode > 1:
-                self.agent.clear_memory()
+            # NOTE: No need to clear replay buffer anymore!
+            # After pooling fix, all experiences are fixed-size [embedding_dim]
+            # so they batch perfectly regardless of which sample they came from.
+            # Keeping experiences from multiple samples improves learning.
             
             # Train episode
             stats = self.train_episode(acfg, episode)
@@ -248,7 +248,13 @@ class SRLMalGraphTrainer:
         total_mutations = []
         score_reductions = []
         
-        for i, acfg in enumerate(eval_acfgs):
+        for i, acfg_data in enumerate(eval_acfgs):
+            # Preprocess ACFG (same as training loop)
+            if 'result' in acfg_data:
+                acfg = json.loads(acfg_data['result'])
+            else:
+                acfg = acfg_data
+            
             state = self.env.reset(acfg)
             initial_score = state['score']
             
@@ -386,20 +392,23 @@ def main():
     LOG_DIR = "./logs/srl_malgraph"
     CHECKPOINT_DIR = "./checkpoints/srl_malgraph"
     
-    # Hyperparameters
-    NUM_EPISODES = 2500
-    MAX_STEPS = 50
-    K_TOP_BLOCKS = 10
-    BATCH_SIZE = 32
-    LR = 0.001
+    # Hyperparameters (SRL paper settings)
+    NUM_EPISODES = 10000  # Reduced from 2500 for faster training
+    NUM_TRAIN_SAMPLES = 2000  # 100 samples × 1000 episodes = 10 passes per sample
+    MAX_STEPS = 30  # SRL paper: max 30 iterations per sample
+    K_TOP_BLOCKS = 1250  # SRL paper: 1250 effected basic blocks per iteration
+    BATCH_SIZE = 512  # SRL paper: minibatch size 512
+    LR = 0.001  # RMSProp learning rate
     GAMMA = 0.9
     THRESHOLD = 0.14346  # MalGraph 100fpr threshold
+    REPLAY_MEMORY = 3000  # SRL paper: 3000 most recent queries
+    EPSILON_DECAY = 3000  # SRL paper: decay over first 3000 queries
     
     print("Initializing SRL-MalGraph Training...")
     
     # Load dataset
     print("\n1. Loading ACFG dataset...")
-    acfgs = load_acfg_dataset(ACFG_DIR, max_samples=100)  # Start with 100 samples
+    acfgs = load_acfg_dataset(ACFG_DIR, max_samples=NUM_TRAIN_SAMPLES)  # 50 samples, ~20 passes each
     
     # Initialize NOP mapper
     print("\n2. Initializing semantic NOP mapper...")
@@ -421,23 +430,28 @@ def main():
     env = SRLMalGraphEnvironment(
         malgraph_classifier=classifier,
         nop_mapper=nop_mapper,
-        threshold=0.14346,  # 100fpr threshold
-        max_mutations=30,
-        top_k_blocks=6,  # Consider top 6 important blocks
-        reward_type='continuous',
+        threshold=THRESHOLD,
+        max_mutations=MAX_STEPS,  # 30 iterations
+        top_k_blocks=K_TOP_BLOCKS,  # SRL paper: 1250 blocks per iteration
+        reward_type='sparse',  # SRL paper uses sparse rewards
         terminal_bonus=10.0,
         sortpooling_method='l2_norm'  # Non-trainable for baseline
     )
-    print("   [NOTE: Replace with actual MalGraph classifier]")
+    print(f"   top_k_blocks={K_TOP_BLOCKS} (SRL paper setting)")
     
     # Initialize agent
-    print("\n4. Initializing DQN agent...")
+    print("\n5. Initializing DQN agent...")
     agent = SimplifiedDQNAgent(
         num_nops=len(nop_list),
         embedding_dim=200,
-        batch_size=8,          # Smaller batch = faster training start
-        epsilon_start=0.9,     # Start with some exploitation (10% greedy)
-        epsilon_decay=1000,    # Slower decay
+        batch_size=BATCH_SIZE,  # SRL paper: 512
+        memory_capacity=REPLAY_MEMORY,  # SRL paper: 3000
+        epsilon_start=1.0,  # SRL paper: start at 1.0
+        epsilon_end=0.1,  # SRL paper: decay to 0.1
+        epsilon_decay=EPSILON_DECAY,  # SRL paper: 3000 queries
+        lr=LR,
+        gamma=GAMMA,
+        optimizer_type='rmsprop'  # SRL paper uses RMSProp, not Adam
     )
     
     # Initialize trainer
@@ -447,6 +461,7 @@ def main():
         agent=agent,
         num_episodes=NUM_EPISODES,
         max_steps_per_episode=MAX_STEPS,
+        save_freq=20,
         log_dir=LOG_DIR,
         checkpoint_dir=CHECKPOINT_DIR
     )

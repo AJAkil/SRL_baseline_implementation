@@ -41,12 +41,13 @@ class SRLMalGraphEnvironment:
         malgraph_classifier,  # MalgraphServerFeature, DirectMalgraphClient, or adapter
         nop_mapper: SemanticNOPMapper,
         threshold: float = 0.14346,  # 100fpr: 0.14346, 1000fpr: 0.91276
-        max_mutations: int = 50,
+        max_mutations: int = 30,  # SRL paper: max 30 iterations
         top_k_blocks: int = 6,
         reward_type: str = 'continuous',  # 'continuous', 'binary', 'sparse'
         terminal_bonus: float = 10.0,
         sortpooling_method: str = 'l2_norm',  # 'l2_norm' or 'trainable'
-        embedding_dim: int = 64  # For trainable attention
+        embedding_dim: int = 64,  # For trainable attention
+        injection_budget_pct: float = 0.05  # SRL paper: 5% injection budget
     ):
         """
         Initialize the SRL-MalGraph environment.
@@ -75,6 +76,7 @@ class SRLMalGraphEnvironment:
         self.terminal_bonus = terminal_bonus
         self.sortpooling_method = sortpooling_method
         self.embedding_dim = embedding_dim
+        self.injection_budget_pct = injection_budget_pct
         
         # Initialize trainable attention layer if needed
         if sortpooling_method == 'trainable':
@@ -122,6 +124,9 @@ class SRLMalGraphEnvironment:
         self.num_mutations = 0
         self.mutation_history = []
         
+        # Track 5% injection budget (SRL paper: feature magnitude increase)
+        self.original_feature_norm = self._compute_total_feature_norm(self.original_acfg)
+        
         # Compute block importance using SortPooling
         self.important_blocks = self._compute_block_importance()
         
@@ -129,6 +134,45 @@ class SRLMalGraphEnvironment:
         state = self._get_state()
         
         return state
+    
+    def _compute_total_feature_norm(self, acfg: Dict) -> float:
+        """
+        Compute L2 norm of all block features in ACFG.
+        Used for 5% injection budget tracking (SRL paper: size increase).
+        
+        Args:
+            acfg: ACFG dictionary
+        
+        Returns:
+            L2 norm of flattened feature vector
+        """
+        all_features = []
+        for func_acfg in acfg['acfg_list']:
+            all_features.extend(func_acfg['block_features'])
+        
+        # Flatten and compute L2 norm
+        features_flat = np.array(all_features).flatten()
+        return np.linalg.norm(features_flat)
+    
+    def _compute_total_feature_norm(self, acfg: Dict) -> float:
+        """
+        Compute L2 norm of all block features in ACFG.
+        Used for 5% injection budget tracking (SRL paper).
+        
+        Args:
+            acfg: ACFG dictionary
+        
+        Returns:
+            L2 norm of all features
+        """
+        all_features = []
+        for func_acfg in acfg['acfg_list']:
+            all_features.extend(func_acfg['block_features'])
+        
+        # Flatten to 1D array and compute norm
+
+        features_flat = np.array(all_features).flatten()
+        return np.linalg.norm(features_flat)
     
     def _compute_block_importance(self) -> List[Tuple[int, int, float]]:
         """
@@ -405,6 +449,22 @@ class SRLMalGraphEnvironment:
         nop_str = nop_data['nop_str']
 
         #print("chosen nop_str: ", nop_str)
+        
+        # Check 5% injection budget BEFORE mutation (SRL paper: feature size increase)
+        current_norm = self._compute_total_feature_norm(self.current_acfg)
+        feature_increase_pct = (current_norm - self.original_feature_norm) / self.original_feature_norm
+        
+        if feature_increase_pct > self.injection_budget_pct:
+            # Budget exceeded - terminate
+            info = {
+                'score': self.current_score,
+                'score_delta': 0,
+                'num_mutations': self.num_mutations,
+                'bypassed': False,
+                'budget_exceeded': True,
+                'feature_increase_pct': feature_increase_pct
+            }
+            return self._get_state(), -1.0, True, info
 
         # Store embeddings BEFORE mutation for verification
         embeddings_before = self.get_current_state_embedding().detach().cpu()
@@ -538,6 +598,12 @@ class SRLMalGraphEnvironment:
         
         # Terminal if max mutations reached
         if self.num_mutations >= self.max_mutations:
+            return True
+        
+        # Terminal if 5% injection budget exceeded (SRL paper)
+        current_norm = self._compute_total_feature_norm(self.current_acfg)
+        feature_increase_pct = (current_norm - self.original_feature_norm) / self.original_feature_norm
+        if feature_increase_pct > self.injection_budget_pct:
             return True
         
         return False
