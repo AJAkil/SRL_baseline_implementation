@@ -47,7 +47,8 @@ class SRLMalGraphEnvironment:
         terminal_bonus: float = 10.0,
         sortpooling_method: str = 'l2_norm',  # 'l2_norm' or 'trainable'
         embedding_dim: int = 64,  # For trainable attention
-        injection_budget_pct: float = 0.05  # SRL paper: 5% injection budget
+        injection_budget_pct: float = 0.05,  # SRL paper: 5% injection budget
+        debug: bool = False  # Enable debug print statements
     ):
         """
         Initialize the SRL-MalGraph environment.
@@ -77,6 +78,7 @@ class SRLMalGraphEnvironment:
         self.sortpooling_method = sortpooling_method
         self.embedding_dim = embedding_dim
         self.injection_budget_pct = injection_budget_pct
+        self.debug = debug
         
         # Initialize trainable attention layer if needed
         if sortpooling_method == 'trainable':
@@ -117,15 +119,22 @@ class SRLMalGraphEnvironment:
         # Get initial classification score
         self.current_score = self.classifier.predict(self.current_acfg)
         self.previous_score = self.current_score
-        print(f"Environment reset: Initial score = {self.current_score:.6f}")
-        print(f"The classifier model is {self.classifier.classifier.model}")
+        if self.debug:
+            print(f"Environment reset: Initial score = {self.current_score:.6f}")
+            print(f"The classifier model is {self.classifier.classifier.model}")
         
         # Reset counters
         self.num_mutations = 0
         self.mutation_history = []
         
-        # Track 5% injection budget (SRL paper: feature magnitude increase)
-        self.original_feature_norm = self._compute_total_feature_norm(self.original_acfg)
+        # Track 5% injection budget (SRL paper: instruction count, not feature norm)
+        self.original_total_ins = self._count_total_instructions(self.original_acfg)
+        self.budget_max_ins = int(self.injection_budget_pct * self.original_total_ins)
+        self.injected_ins = 0  # Track instructions added so far
+        
+        if self.debug:
+            print(f"  Original total instructions: {self.original_total_ins}")
+            print(f"  5% budget allows: {self.budget_max_ins} additional instructions")
         
         # Compute block importance using SortPooling
         self.important_blocks = self._compute_block_importance()
@@ -135,44 +144,28 @@ class SRLMalGraphEnvironment:
         
         return state
     
-    def _compute_total_feature_norm(self, acfg: Dict) -> float:
+    def _count_total_instructions(self, acfg: Dict) -> int:
         """
-        Compute L2 norm of all block features in ACFG.
-        Used for 5% injection budget tracking (SRL paper: size increase).
-        
-        Args:
-            acfg: ACFG dictionary
-        
-        Returns:
-            L2 norm of flattened feature vector
-        """
-        all_features = []
-        for func_acfg in acfg['acfg_list']:
-            all_features.extend(func_acfg['block_features'])
-        
-        # Flatten and compute L2 norm
-        features_flat = np.array(all_features).flatten()
-        return np.linalg.norm(features_flat)
-    
-    def _compute_total_feature_norm(self, acfg: Dict) -> float:
-        """
-        Compute L2 norm of all block features in ACFG.
+        Count total number of instructions in ACFG.
         Used for 5% injection budget tracking (SRL paper).
         
+        block_features format:
+        [numNc, numSc, numAs, numCalls, numIns, numLIs, numTIs, numCmpIs, numMovIs, numTermIs, numDefIs]
+         [0]    [1]    [2]    [3]       [4]     [5]    [6]    [7]      [8]      [9]       [10]
+        
         Args:
             acfg: ACFG dictionary
         
         Returns:
-            L2 norm of all features
+            Total instruction count (sum of all numIns across all blocks)
         """
-        all_features = []
+        total_ins = 0
         for func_acfg in acfg['acfg_list']:
-            all_features.extend(func_acfg['block_features'])
+            for block_features in func_acfg['block_features']:
+                # block_features[4] is numIns (number of instructions in this block)
+                total_ins += block_features[4]
         
-        # Flatten to 1D array and compute norm
-
-        features_flat = np.array(all_features).flatten()
-        return np.linalg.norm(features_flat)
+        return total_ins
     
     def _compute_block_importance(self) -> List[Tuple[int, int, float]]:
         """
@@ -235,10 +228,11 @@ class SRLMalGraphEnvironment:
         # Sort by importance (descending) and take top-k
         block_scores.sort(key=lambda x: x[2], reverse=True)
 
-        # # print the sorted block scores
-        # print("Top 10 important blocks (func_idx, block_idx, score):")
-        # for i, (func_idx, block_idx, score) in enumerate(block_scores[:10]):
-        #     print(f"  {i+1}. Function {func_idx}, Block {block_idx} (importance: {score:.4f})") 
+        if self.debug:
+            # print the sorted block scores
+            print("Top 10 important blocks (func_idx, block_idx, score):")
+            for i, (func_idx, block_idx, score) in enumerate(block_scores[:10]):
+                print(f"  {i+1}. Function {func_idx}, Block {block_idx} (importance: {score:.4f})")
         
         return block_scores[:self.top_k_blocks]
     
@@ -439,6 +433,7 @@ class SRLMalGraphEnvironment:
         
         if nop_idx >= self.num_nop_actions:
             # Invalid NOP index
+            print(f"  ⚠️  Invalid NOP index: {nop_idx} >= {self.num_nop_actions}")
             return self._get_state(), -1.0, True, {'error': 'Invalid NOP index'}
         
         # # Get target block
@@ -448,22 +443,28 @@ class SRLMalGraphEnvironment:
         nop_data = self.nop_list[nop_idx]
         nop_str = nop_data['nop_str']
 
-        #print("chosen nop_str: ", nop_str)
+        if self.debug:
+            print(f"  Chosen NOP: {nop_str}")
         
-        # Check 5% injection budget BEFORE mutation (SRL paper: feature size increase)
-        current_norm = self._compute_total_feature_norm(self.current_acfg)
-        feature_increase_pct = (current_norm - self.original_feature_norm) / self.original_feature_norm
+        # Check 5% injection budget BEFORE mutation (SRL paper: instruction count)
+        # Count how many instructions this NOP will add
+        nop_ins_count = nop_data.get('num_instructions', 1)  # Default to 1 if not specified
+        num_blocks_to_mutate = len(self.important_blocks)
+        total_new_ins = nop_ins_count * num_blocks_to_mutate
         
-        if feature_increase_pct > self.injection_budget_pct:
-            # Budget exceeded - terminate
+        if self.injected_ins + total_new_ins > self.budget_max_ins:
+            # Budget would be exceeded - terminate
             info = {
                 'score': self.current_score,
                 'score_delta': 0,
                 'num_mutations': self.num_mutations,
                 'bypassed': False,
                 'budget_exceeded': True,
-                'feature_increase_pct': feature_increase_pct
+                'injected_ins': self.injected_ins,
+                'budget_max_ins': self.budget_max_ins
             }
+            if self.debug:
+                print(f"  ⚠️  Injection budget exceeded: {self.injected_ins + total_new_ins} > {self.budget_max_ins} instructions")
             return self._get_state(), -1.0, True, info
 
         # Store embeddings BEFORE mutation for verification
@@ -471,25 +472,27 @@ class SRLMalGraphEnvironment:
 
         for block_selection_idx in range(len(self.important_blocks)):
             func_idx, block_idx, importance = self.important_blocks[block_selection_idx]
-
             self._mutate_block(func_idx, block_idx, nop_str)
         
-        # # Apply mutation using NOP mapper
-        # self._mutate_block(func_idx, block_idx, nop_str)
+        # Update injected instruction count
+        self.injected_ins += total_new_ins
         
         # Verify embeddings AFTER mutation have changed
         embeddings_after = self.get_current_state_embedding().detach().cpu()
         
         # Check if embeddings changed
         embeddings_diff = torch.norm(embeddings_after - embeddings_before)
-        if embeddings_diff < 1e-6:
-            print(f"  ⚠️  WARNING: Embeddings unchanged after mutation! Diff: {embeddings_diff:.8f}")
-        # else:
-        #     print(f"  ✓ Embeddings changed after mutation. L2 diff: {embeddings_diff:.6f}")
+        if self.debug:
+            if embeddings_diff < 1e-6:
+                print(f"  ⚠️  WARNING: Embeddings unchanged after mutation! Diff: {embeddings_diff:.8f}")
+            else:
+                print(f"  ✓ Embeddings changed after mutation. L2 diff: {embeddings_diff:.6f}")
         
         # Update score
         self.previous_score = self.current_score
         self.current_score = self.classifier.predict(self.current_acfg)
+
+        #print(f" Previous score: {self.previous_score:.6f}, Current score: {self.current_score:.6f}")
         
         # Update counters
         self.num_mutations += 1
@@ -536,21 +539,23 @@ class SRLMalGraphEnvironment:
         # Get reference to block features (this is a list, modified in-place)
         # Python lists are mutable: modifying target_features modifies self.current_acfg
         target_features = self.current_acfg['acfg_list'][func_idx]['block_features'][block_idx]
-        
-        # Debug: Print before mutation
-        features_before = target_features.copy()
+
+        if self.debug:
+            print(f"Original Features F{func_idx}.B{block_idx}: {target_features}")
         
         # Apply NOP using the mapper (modifies target_features in-place via element assignment)
         # The mapper does: target_features[i] += increment[i] for each i
         self.nop_mapper.apply_nop_to_block_features(target_features, nop_str)
         
         # Debug: Verify mutation actually happened
-        features_after = target_features
-        # if features_before != features_after:
-        #     print(f"  ✓ Block F{func_idx}.B{block_idx} mutated: {features_before} → {features_after}")
-        # else:
-        #     print(f"  ✗ WARNING: Block F{func_idx}.B{block_idx} NOT mutated!")
-        
+        if self.debug:
+            print(f"  ✓ Block F{func_idx}.B{block_idx} mutated with NOP: {nop_str}")
+
+            print("[numNc, numSc, numAs, numCalls, numIns, numLIs, numTIs, numCmpIs, numMovIs, numTermIs, numDefIs]")
+            print("    [0]     [1]    [2]    [3]       [4]     [5]    [6]    [7]      [8]      [9]       [10]")
+
+            print(f"  ✓ New Features F{func_idx}.B{block_idx}: {target_features}\n")
+
         # Verify self.current_acfg was updated (should be same reference)
         assert self.current_acfg['acfg_list'][func_idx]['block_features'][block_idx] is target_features, \
             "ERROR: Block features reference mismatch!"
@@ -565,20 +570,20 @@ class SRLMalGraphEnvironment:
         score_delta = self.previous_score - self.current_score
         
         if self.reward_type == 'continuous':
-            # Reward proportional to score reduction
+            # Reward proportional to score reduction (custom variant)
             reward = score_delta
             if self.current_score < self.threshold:
                 reward += self.terminal_bonus
         
         elif self.reward_type == 'binary':
-            # Binary reward for bypass
+            # Binary reward for bypass (custom variant)
             reward = 1.0 if self.current_score < self.threshold else 0.0
         
         elif self.reward_type == 'sparse':
-            # SRL paper's original: +1 if improved, 0 otherwise
+            # SRL paper's original reward (exact match to paper):
+            # rt = 1 if probability of evasion increases (score decreases), 0 otherwise
+            # No terminal bonus in the original paper
             reward = 1.0 if score_delta > 0 else 0.0
-            if self.current_score < self.threshold:
-                reward += self.terminal_bonus
         
         else:
             raise ValueError(f"Unknown reward_type: {self.reward_type}")
@@ -594,16 +599,20 @@ class SRLMalGraphEnvironment:
         """
         # Terminal if bypassed
         if self.current_score < self.threshold:
+            if self.debug:
+                print("  🎉 Malware bypassed the classifier!")
             return True
         
         # Terminal if max mutations reached
         if self.num_mutations >= self.max_mutations:
+            if self.debug:
+                print("  ⏳ Maximum mutations reached.")
             return True
         
-        # Terminal if 5% injection budget exceeded (SRL paper)
-        current_norm = self._compute_total_feature_norm(self.current_acfg)
-        feature_increase_pct = (current_norm - self.original_feature_norm) / self.original_feature_norm
-        if feature_increase_pct > self.injection_budget_pct:
+        # Terminal if 5% injection budget exceeded (SRL paper: instruction count)
+        if self.injected_ins > self.budget_max_ins:
+            if self.debug:
+                print(f"  ⚠️  Injection budget exceeded: {self.injected_ins} > {self.budget_max_ins} instructions")
             return True
         
         return False

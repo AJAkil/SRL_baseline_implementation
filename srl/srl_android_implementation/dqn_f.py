@@ -6,10 +6,10 @@ import random
 from torch.autograd import Variable
 import torch.nn.functional as F
 import numpy as np
-from freq import *
+from SRL_Implementation.srl.srl_android_implementation.freq import *
 import time
-from mlp_dropout import MLPClassifier, MLPRegression
-from DGCNN_embedding import DGCNN
+from SRL_Implementation.srl.srl_android_implementation.mlp_dropout import MLPClassifier, MLPRegression
+from SRL_Implementation.srl.srl_android_implementation.DGCNN_embedding import DGCNN
 import os
 np.random.seed(0)
 torch.manual_seed(0)

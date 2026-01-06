@@ -4,7 +4,7 @@ import os
 import shutil
 import sys
 import argparse
-import dqn_f
+import SRL_Implementation.srl.srl_android_implementation.dqn_f as dqn_f
 sys.path.append("classifier")
 import RF_demo
 import dnn

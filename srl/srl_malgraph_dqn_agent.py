@@ -364,7 +364,7 @@ class  SimplifiedDQNAgent:
         return loss.item()
     
     def save_checkpoint(self, filepath: str):
-        """Save agent checkpoint."""
+        """Save agent checkpoint including replay buffer."""
         torch.save({
             'q_network': self.q_network.state_dict(),
             'target_q_network': self.target_q_network.state_dict(),
@@ -372,19 +372,35 @@ class  SimplifiedDQNAgent:
             'steps_done': self.steps_done,
             'learn_step_counter': self.learn_step_counter,
             'num_nops': self.num_nops,
-            'embedding_dim': self.embedding_dim
+            'embedding_dim': self.embedding_dim,
+            'replay_memory': self.memory,  # Save entire replay buffer
+            'epsilon_start': self.epsilon_start,
+            'epsilon_end': self.epsilon_end,
+            'epsilon_decay': self.epsilon_decay
         }, filepath)
-        print(f"Checkpoint saved to {filepath}")
+        print(f"Checkpoint saved to {filepath} (replay buffer size: {len(self.memory)})")
     
     def load_checkpoint(self, filepath: str):
-        """Load agent checkpoint."""
+        """Load agent checkpoint including replay buffer."""
         checkpoint = torch.load(filepath, map_location=self.device)
         self.q_network.load_state_dict(checkpoint['q_network'])
         self.target_q_network.load_state_dict(checkpoint['target_q_network'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.steps_done = checkpoint['steps_done']
         self.learn_step_counter = checkpoint['learn_step_counter']
-        print(f"Checkpoint loaded from {filepath}")
+        
+        # Restore replay buffer if present
+        if 'replay_memory' in checkpoint:
+            self.memory = checkpoint['replay_memory']
+            print(f"Checkpoint loaded from {filepath} (restored {len(self.memory)} experiences)")
+        else:
+            print(f"Checkpoint loaded from {filepath} (no replay buffer found)")
+        
+        # Restore epsilon parameters if present
+        if 'epsilon_start' in checkpoint:
+            self.epsilon_start = checkpoint['epsilon_start']
+            self.epsilon_end = checkpoint['epsilon_end']
+            self.epsilon_decay = checkpoint['epsilon_decay']
 
 
 if __name__ == "__main__":

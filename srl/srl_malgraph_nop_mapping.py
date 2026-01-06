@@ -15,6 +15,7 @@ Author: Md Ajwad Akil
 Date: December 2025
 """
 
+import pprint
 import re
 from typing import List, Dict, Tuple
 
@@ -380,12 +381,18 @@ class SemanticNOPMapper:
         # Generate exactly 28 NOPs
         for nop_str, nop_id, nop_name in srl_nops:
             features = self.compute_feature_increment(nop_str)
+            # Count number of instructions in this NOP (for 5% budget tracking)
+            num_instructions = features[4]  # numIns is at index 4
             nop_list.append({
                 'nop_str': nop_str,
                 'features': features,
                 'id': nop_id,
-                'name': nop_name
+                'name': nop_name,
+                'num_instructions': num_instructions
             })
+
+        print(f"The Nop list is:")
+        pprint.pprint(nop_list)
         
         assert len(nop_list) == 28, f"Expected 28 NOPs, got {len(nop_list)}"
         

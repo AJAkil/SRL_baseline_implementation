@@ -80,6 +80,7 @@ class SRLMalGraphTrainer:
         self.episode_bypassed = []
         self.training_losses = []
         self.eval_success_rates = []
+        self.start_episode = 0  # For resuming training
         
         print(f"Trainer initialized:")
         print(f"  Episodes: {num_episodes}")
@@ -105,6 +106,9 @@ class SRLMalGraphTrainer:
         steps = 0
         
         for step in range(self.max_steps_per_episode):
+
+            if step % 5 == 0 and step > 0:
+                print(f" Episode {episode}, Step {step+1}/{self.max_steps_per_episode}")
             # Select action
             action_nop_idx = self.agent.select_action(state, explore=True)
             
@@ -140,12 +144,13 @@ class SRLMalGraphTrainer:
         
         return stats
     
-    def train(self, training_acfgs: List[Dict]):
+    def train(self, training_acfgs: List[Dict], training_acfgs_file_names: List[str]):
         """
         Main training loop.
         
         Args:
             training_acfgs: List of ACFG dictionaries for training samples
+            training_acfgs_file_names: List of file names corresponding to training ACFGs
         """
         print("\n" + "=" * 80)
         print("Starting SRL-MalGraph Training")
@@ -157,11 +162,11 @@ class SRLMalGraphTrainer:
         
         start_time = time.time()
         
-        for episode in tqdm(range(1, self.num_episodes + 1), desc="Training"):
+        for episode in tqdm(range(self.start_episode + 1, self.num_episodes + 1), desc="Training"):
             # Sample random malware
             acfg_idx = np.random.randint(0, num_samples)
             acfg_data = training_acfgs[acfg_idx]
-            #print(f"the acfg is {acfg}")
+            acfg_file_name = training_acfgs_file_names[acfg_idx]
 
             if 'result' in acfg_data:
                 acfg = json.loads(acfg_data['result'])
@@ -174,6 +179,7 @@ class SRLMalGraphTrainer:
             # Keeping experiences from multiple samples improves learning.
             
             # Train episode
+            print(f"\nEpisode {episode}: Training on sample '{acfg_file_name}'")
             stats = self.train_episode(acfg, episode)
             
             # Store statistics
@@ -216,8 +222,7 @@ class SRLMalGraphTrainer:
                     self.checkpoint_dir,
                     f"checkpoint_ep{episode}.pt"
                 )
-                self.agent.save_checkpoint(checkpoint_path)
-                self.save_training_stats()
+                self.save_full_checkpoint(checkpoint_path, episode)
         
         # Training complete
         elapsed_time = time.time() - start_time
@@ -229,8 +234,7 @@ class SRLMalGraphTrainer:
         
         # Save final checkpoint
         final_path = os.path.join(self.checkpoint_dir, "final_model.pt")
-        self.agent.save_checkpoint(final_path)
-        self.save_training_stats()
+        self.save_full_checkpoint(final_path, self.num_episodes)
         self.plot_training_curves()
     
     def evaluate(self, eval_acfgs: List[Dict], verbose: bool = False) -> Dict:
@@ -296,7 +300,8 @@ class SRLMalGraphTrainer:
             'episode_final_scores': self.episode_final_scores,
             'episode_bypassed': self.episode_bypassed,
             'training_losses': self.training_losses,
-            'eval_success_rates': self.eval_success_rates
+            'eval_success_rates': self.eval_success_rates,
+            'start_episode': self.start_episode
         }
         
         stats_path = os.path.join(self.log_dir, 'training_stats.json')
@@ -304,6 +309,54 @@ class SRLMalGraphTrainer:
             json.dump(stats, f, indent=2)
         
         print(f"Training stats saved to {stats_path}")
+    
+    def save_full_checkpoint(self, filepath: str, episode: int):
+        """Save complete training checkpoint (agent + training state)."""
+        # Save agent checkpoint
+        self.agent.save_checkpoint(filepath)
+        
+        # Save training statistics alongside
+        stats_path = filepath.replace('.pt', '_stats.json')
+        stats = {
+            'episode': episode,
+            'episode_rewards': self.episode_rewards,
+            'episode_lengths': self.episode_lengths,
+            'episode_final_scores': self.episode_final_scores,
+            'episode_bypassed': self.episode_bypassed,
+            'training_losses': self.training_losses,
+            'eval_success_rates': self.eval_success_rates
+        }
+        
+        with open(stats_path, 'w') as f:
+            json.dump(stats, f, indent=2)
+        
+        print(f"Full checkpoint saved: {filepath} + stats")
+    
+    def load_checkpoint(self, checkpoint_path: str):
+        """Load checkpoint to resume training."""
+        # Load agent checkpoint
+        self.agent.load_checkpoint(checkpoint_path)
+        
+        # Load training statistics
+        stats_path = checkpoint_path.replace('.pt', '_stats.json')
+        if os.path.exists(stats_path):
+            with open(stats_path, 'r') as f:
+                stats = json.load(f)
+            
+            self.start_episode = stats.get('episode', 0)
+            self.episode_rewards = stats.get('episode_rewards', [])
+            self.episode_lengths = stats.get('episode_lengths', [])
+            self.episode_final_scores = stats.get('episode_final_scores', [])
+            self.episode_bypassed = stats.get('episode_bypassed', [])
+            self.training_losses = stats.get('training_losses', [])
+            self.eval_success_rates = stats.get('eval_success_rates', [])
+            
+            print(f"Training state loaded: resuming from episode {self.start_episode}")
+            print(f"  Previous episodes: {len(self.episode_rewards)}")
+            print(f"  Replay buffer size: {len(self.agent.memory)}")
+        else:
+            print(f"Warning: No training stats found at {stats_path}")
+            print(f"Starting from episode 0 with loaded agent weights")
     
     def plot_training_curves(self):
         """Plot and save training curves."""
@@ -377,7 +430,7 @@ def load_acfg_dataset(acfg_dir: str, max_samples: int = None) -> List[Dict]:
             acfgs.append(acfg)
     
     print(f"Loaded {len(acfgs)} ACFG samples")
-    return acfgs
+    return acfgs, acfg_files
 
 
 def main():
@@ -388,7 +441,7 @@ def main():
         python srl_malgraph_training.py
     """
     # Paths (adjust to your setup)
-    ACFG_DIR = "/home/newdrive/makil/projects/SRL_Implementation/srl/test_acfgs"  # Directory with ACFG JSON files
+    ACFG_DIR = "/home/newdrive/makil/projects/SRL_Implementation/srl/datasets/test_acfgs"  # Directory with ACFG JSON files
     LOG_DIR = "./logs/srl_malgraph"
     CHECKPOINT_DIR = "./checkpoints/srl_malgraph"
     
@@ -396,7 +449,7 @@ def main():
     NUM_EPISODES = 10000  # Reduced from 2500 for faster training
     NUM_TRAIN_SAMPLES = 2000  # 100 samples × 1000 episodes = 10 passes per sample
     MAX_STEPS = 30  # SRL paper: max 30 iterations per sample
-    K_TOP_BLOCKS = 1250  # SRL paper: 1250 effected basic blocks per iteration
+    K_TOP_BLOCKS = 5  # SRL paper: 1250 effected basic blocks per iteration
     BATCH_SIZE = 512  # SRL paper: minibatch size 512
     LR = 0.001  # RMSProp learning rate
     GAMMA = 0.9
@@ -408,7 +461,7 @@ def main():
     
     # Load dataset
     print("\n1. Loading ACFG dataset...")
-    acfgs = load_acfg_dataset(ACFG_DIR, max_samples=NUM_TRAIN_SAMPLES)  # 50 samples, ~20 passes each
+    acfgs, acfgs_file_names = load_acfg_dataset(ACFG_DIR, max_samples=NUM_TRAIN_SAMPLES)  # 50 samples, ~20 passes each
     
     # Initialize NOP mapper
     print("\n2. Initializing semantic NOP mapper...")
@@ -435,7 +488,8 @@ def main():
         top_k_blocks=K_TOP_BLOCKS,  # SRL paper: 1250 blocks per iteration
         reward_type='sparse',  # SRL paper uses sparse rewards
         terminal_bonus=10.0,
-        sortpooling_method='l2_norm'  # Non-trainable for baseline
+        sortpooling_method='l2_norm',  # Non-trainable for baseline
+        debug=False  # Set to True to see verification messages
     )
     print(f"   top_k_blocks={K_TOP_BLOCKS} (SRL paper setting)")
     
@@ -455,7 +509,7 @@ def main():
     )
     
     # Initialize trainer
-    print("\n5. Initializing trainer...")
+    print("\n6. Initializing trainer...")
     trainer = SRLMalGraphTrainer(
         env=env,
         agent=agent,
@@ -466,12 +520,35 @@ def main():
         checkpoint_dir=CHECKPOINT_DIR
     )
     
+    # Check if resuming from checkpoint
+    RESUME_CHECKPOINT = None  # Set to path like './checkpoints/checkpoint_ep500.pt' to resume
+    
+    if RESUME_CHECKPOINT and os.path.exists(RESUME_CHECKPOINT):
+        print(f"\n⚠️  Resuming training from checkpoint: {RESUME_CHECKPOINT}")
+        trainer.load_checkpoint(RESUME_CHECKPOINT)
+    
     # Start training
-    print("\n6. Starting training...")
-    trainer.train(acfgs)
+    print("\n7. Starting training...")
+    trainer.train(acfgs, acfgs_file_names)
     
     print("\n[NOTE: Uncomment trainer.train() after setting up MalGraph classifier]")
     print("Training script ready!")
+    print("\n" + "="*80)
+    print("CHECKPOINT/RESUME INSTRUCTIONS:")
+    print("="*80)
+    print("To resume training from a checkpoint:")
+    print("  1. Set RESUME_CHECKPOINT = './checkpoints/checkpoint_ep500.pt'")
+    print("  2. Run this script again")
+    print("  3. Training will continue from episode 501")
+    print("\nCheckpoints are automatically saved every 20 episodes to:")
+    print(f"  {CHECKPOINT_DIR}/checkpoint_epXXX.pt")
+    print("\nEach checkpoint includes:")
+    print("  - Q-network and target network weights")
+    print("  - Optimizer state (Adam/RMSprop)")
+    print("  - Replay buffer with all experiences")
+    print("  - Epsilon decay state")
+    print("  - Training statistics (rewards, losses, etc.)")
+    print("="*80)
 
 
 if __name__ == "__main__":
