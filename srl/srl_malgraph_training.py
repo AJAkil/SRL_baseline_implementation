@@ -441,7 +441,7 @@ def main():
         python srl_malgraph_training.py
     """
     # Paths (adjust to your setup)
-    ACFG_DIR = "/home/newdrive/makil/projects/SRL_Implementation/srl/datasets/test_acfgs"  # Directory with ACFG JSON files
+    ACFG_DIR = "/home/newdrive/makil/projects/SRL_Implementation/srl/datasets/agent_training_set/FINAL_2000_MAR_AUG_2024"  # Directory with ACFG JSON files
     LOG_DIR = "./logs/srl_malgraph"
     CHECKPOINT_DIR = "./checkpoints/srl_malgraph"
     
@@ -449,7 +449,7 @@ def main():
     NUM_EPISODES = 10000  # Reduced from 2500 for faster training
     NUM_TRAIN_SAMPLES = 2000  # 100 samples × 1000 episodes = 10 passes per sample
     MAX_STEPS = 30  # SRL paper: max 30 iterations per sample
-    K_TOP_BLOCKS = 5  # SRL paper: 1250 effected basic blocks per iteration
+    K_TOP_BLOCKS = 120  # SRL paper: 1250 effected basic blocks per iteration
     BATCH_SIZE = 512  # SRL paper: minibatch size 512
     LR = 0.001  # RMSProp learning rate
     GAMMA = 0.9
@@ -515,7 +515,7 @@ def main():
         agent=agent,
         num_episodes=NUM_EPISODES,
         max_steps_per_episode=MAX_STEPS,
-        save_freq=20,
+        save_freq=500,
         log_dir=LOG_DIR,
         checkpoint_dir=CHECKPOINT_DIR
     )

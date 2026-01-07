@@ -599,20 +599,20 @@ class SRLMalGraphEnvironment:
         """
         # Terminal if bypassed
         if self.current_score < self.threshold:
-            if self.debug:
-                print("  🎉 Malware bypassed the classifier!")
+            #if self.debug:
+            print("  🎉 Malware bypassed the classifier!")
             return True
         
         # Terminal if max mutations reached
         if self.num_mutations >= self.max_mutations:
-            if self.debug:
-                print("  ⏳ Maximum mutations reached.")
+            #if self.debug:
+            print("  ⏳ Maximum mutations reached.")
             return True
         
         # Terminal if 5% injection budget exceeded (SRL paper: instruction count)
         if self.injected_ins > self.budget_max_ins:
-            if self.debug:
-                print(f"  ⚠️  Injection budget exceeded: {self.injected_ins} > {self.budget_max_ins} instructions")
+            #if self.debug:
+            print(f"  ⚠️  Injection budget exceeded: {self.injected_ins} > {self.budget_max_ins} instructions")
             return True
         
         return False
