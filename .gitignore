@@ -58,3 +58,6 @@ Thumbs.db
 
 # Datasets
 srl/datasets/
+
+# any yaml files containing API tokens
+*.yaml

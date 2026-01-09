@@ -47,7 +47,7 @@ class SRLMalGraphEnvironment:
         terminal_bonus: float = 10.0,
         sortpooling_method: str = 'l2_norm',  # 'l2_norm' or 'trainable'
         embedding_dim: int = 64,  # For trainable attention
-        injection_budget_pct: float = 0.05,  # SRL paper: 5% injection budget
+        injection_budget_pct: float = None,  # Set to None to disable budget (like Android SRL), or 0.05-0.50 for % constraint
         debug: bool = False  # Enable debug print statements
     ):
         """
@@ -67,6 +67,7 @@ class SRLMalGraphEnvironment:
                                'l2_norm': Use L2 norm of embeddings (non-trainable)
                                'trainable': Use learnable attention weights (trainable)
             embedding_dim: Dimension of node embeddings (for trainable method)
+            injection_budget_pct: Budget as % of total instructions. None to disable (like Android SRL).
         """
         self.classifier = malgraph_classifier
         self.nop_mapper = nop_mapper
@@ -112,6 +113,15 @@ class SRLMalGraphEnvironment:
         Returns:
             Initial state dictionary
         """
+        # Validate ACFG structure
+        if 'acfg_list' not in acfg_json:
+            raise ValueError(f"Invalid ACFG: missing 'acfg_list' field")
+        if len(acfg_json.get('acfg_list', [])) == 0:
+            raise ValueError(
+                f"Invalid ACFG for {acfg_json.get('hash', 'unknown')}: "
+                f"acfg_list is empty (no functions found)"
+            )
+        
         # Deep copy to preserve original
         self.original_acfg = copy.deepcopy(acfg_json)
         self.current_acfg = copy.deepcopy(acfg_json)
@@ -127,14 +137,20 @@ class SRLMalGraphEnvironment:
         self.num_mutations = 0
         self.mutation_history = []
         
-        # Track 5% injection budget (SRL paper: instruction count, not feature norm)
+        # Track injection budget (optional - can be disabled like Android SRL)
         self.original_total_ins = self._count_total_instructions(self.original_acfg)
-        self.budget_max_ins = int(self.injection_budget_pct * self.original_total_ins)
-        self.injected_ins = 0  # Track instructions added so far
-        
-        if self.debug:
+        if self.injection_budget_pct is not None:
+            self.budget_max_ins = int(self.injection_budget_pct * self.original_total_ins)
+            self.injected_ins = 0  # Track instructions added so far
+            
+            #if self.debug:
             print(f"  Original total instructions: {self.original_total_ins}")
-            print(f"  5% budget allows: {self.budget_max_ins} additional instructions")
+            print(f"  {self.injection_budget_pct*100:.0f}% budget allows: {self.budget_max_ins} additional instructions")
+        else:
+            self.budget_max_ins = float('inf')  # Unlimited budget
+            self.injected_ins = 0
+            print(f"  Original total instructions: {self.original_total_ins}")
+            print(f"  Budget constraint: DISABLED (like Android SRL)")
         
         # Compute block importance using SortPooling
         self.important_blocks = self._compute_block_importance()
@@ -147,7 +163,7 @@ class SRLMalGraphEnvironment:
     def _count_total_instructions(self, acfg: Dict) -> int:
         """
         Count total number of instructions in ACFG.
-        Used for 5% injection budget tracking (SRL paper).
+        Used for injection budget tracking (SRL paper: 5%, configurable).
         
         block_features format:
         [numNc, numSc, numAs, numCalls, numIns, numLIs, numTIs, numCmpIs, numMovIs, numTermIs, numDefIs]
@@ -446,13 +462,14 @@ class SRLMalGraphEnvironment:
         if self.debug:
             print(f"  Chosen NOP: {nop_str}")
         
-        # Check 5% injection budget BEFORE mutation (SRL paper: instruction count)
+        # Check injection budget BEFORE mutation (optional - can be disabled)
         # Count how many instructions this NOP will add
         nop_ins_count = nop_data.get('num_instructions', 1)  # Default to 1 if not specified
         num_blocks_to_mutate = len(self.important_blocks)
         total_new_ins = nop_ins_count * num_blocks_to_mutate
         
-        if self.injected_ins + total_new_ins > self.budget_max_ins:
+        # Only check budget if budget constraint is enabled
+        if self.injection_budget_pct is not None and self.injected_ins + total_new_ins > self.budget_max_ins:
             # Budget would be exceeded - terminate
             info = {
                 'score': self.current_score,
@@ -492,7 +509,7 @@ class SRLMalGraphEnvironment:
         self.previous_score = self.current_score
         self.current_score = self.classifier.predict(self.current_acfg)
 
-        #print(f" Previous score: {self.previous_score:.6f}, Current score: {self.current_score:.6f}")
+        print(f" score change: {self.previous_score:.6f} -> {self.current_score:.6f}")
         
         # Update counters
         self.num_mutations += 1
@@ -599,20 +616,14 @@ class SRLMalGraphEnvironment:
         """
         # Terminal if bypassed
         if self.current_score < self.threshold:
-            #if self.debug:
-            print("  🎉 Malware bypassed the classifier!")
             return True
         
         # Terminal if max mutations reached
         if self.num_mutations >= self.max_mutations:
-            #if self.debug:
-            print("  ⏳ Maximum mutations reached.")
             return True
         
         # Terminal if 5% injection budget exceeded (SRL paper: instruction count)
         if self.injected_ins > self.budget_max_ins:
-            #if self.debug:
-            print(f"  ⚠️  Injection budget exceeded: {self.injected_ins} > {self.budget_max_ins} instructions")
             return True
         
         return False

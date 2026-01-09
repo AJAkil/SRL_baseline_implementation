@@ -148,6 +148,7 @@ class  SimplifiedDQNAgent:
         self.num_nops = num_nops
         self.action_dim = num_nops  # Action is just NOP selection
         self.gamma = gamma
+        self.epsilon_start = epsilon_start
         self.epsilon = epsilon_start
         self.epsilon_end = epsilon_end
         self.epsilon_decay = epsilon_decay
@@ -309,6 +310,8 @@ class  SimplifiedDQNAgent:
         if len(self.memory) < self.batch_size:
             return None
         
+        print("Training step:")
+        
         # Sample random minibatch from replay buffer
         # (decorrelates experiences for stable training)
         batch = random.sample(self.memory, self.batch_size)
@@ -346,6 +349,7 @@ class  SimplifiedDQNAgent:
         
         # ========== Compute loss and optimize ==========
         # MSE loss: (Q(s,a) - target)^2
+        print(f"Computing loss...")
         loss = F.mse_loss(q_values, target_q)
         
         self.optimizer.zero_grad()
@@ -359,6 +363,7 @@ class  SimplifiedDQNAgent:
         # Update target network periodically
         self.learn_step_counter += 1
         if self.learn_step_counter % self.target_update_freq == 0:
+            print(f"Updating target network...")
             self._update_target_network()
         
         return loss.item()

@@ -18,11 +18,39 @@ import torch
 from typing import Dict, List, Tuple
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import requests
+import traceback
 
 from srl_malgraph_environment import SRLMalGraphEnvironment
 from srl_malgraph_dqn_agent import SimplifiedDQNAgent
 from srl_malgraph_nop_mapping import SemanticNOPMapper
 from malgraph_classifier_adapter import SRLMalGraphClassifierAdapter
+import yaml
+
+# =============================================================================
+# TELEGRAM NOTIFICATION CONFIGURATION
+# =============================================================================
+# Get these from: @BotFather (token) and @userinfobot (chat_id)
+with open("api_tokens.yaml", "r") as f:
+    tokens = yaml.safe_load(f)
+TELEGRAM_BOT_TOKEN = tokens.get("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = tokens.get("TELEGRAM_CHAT_ID")
+
+def telegram_notify(message: str):
+    """Send Telegram notification if configured"""
+    if TELEGRAM_BOT_TOKEN is None or TELEGRAM_CHAT_ID is None:
+        return  # Notifications disabled
+    
+    try:
+        url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
+        requests.post(
+            url,
+            json={'chat_id': TELEGRAM_CHAT_ID, 'text': message},
+            timeout=10
+        )
+    except Exception as e:
+        print(f"⚠️  Failed to send Telegram notification: {e}")
+# =============================================================================
 
 
 class SRLMalGraphTrainer:
@@ -106,8 +134,7 @@ class SRLMalGraphTrainer:
         steps = 0
         
         for step in range(self.max_steps_per_episode):
-
-            if step % 5 == 0 and step > 0:
+            if (step+1) % 5 == 0 and step > 0:
                 print(f" Episode {episode}, Step {step+1}/{self.max_steps_per_episode}")
             # Select action
             action_nop_idx = self.agent.select_action(state, explore=True)
@@ -118,10 +145,11 @@ class SRLMalGraphTrainer:
             # Store experience
             self.agent.store_experience(state, action_nop_idx, reward, next_state, done)
             
-            # Train agent
-            loss = self.agent.train_step()
-            if loss is not None:
-                episode_losses.append(loss)
+            # Train agent every 4 steps (SRL paper style - not every step)
+            if step % 4 == 0:
+                loss = self.agent.train_step()
+                if loss is not None:
+                    episode_losses.append(loss)
             
             # Update state
             state = next_state
@@ -129,6 +157,15 @@ class SRLMalGraphTrainer:
             steps += 1
             
             if done:
+                # Print termination reason
+                if info.get('bypassed', False):
+                    print(f"  ✓ Episode {episode} ended: BYPASSED classifier (score: {info['score']:.4f})")
+                elif info.get('budget_exceeded', False):
+                    print(f"  ⚠️  Episode {episode} ended: BUDGET EXCEEDED")
+                elif steps >= self.max_steps_per_episode:
+                    print(f"  ⏳ Episode {episode} ended: MAX STEPS reached ({steps} steps)")
+                else:
+                    print(f"  Episode {episode} ended after {steps} steps")
                 break
         
         # Episode statistics
@@ -173,6 +210,14 @@ class SRLMalGraphTrainer:
             else:
                 acfg = acfg_data
             
+            # Validate ACFG has functions before training
+            if 'acfg_list' not in acfg or len(acfg.get('acfg_list', [])) == 0:
+                print(f"⚠️ SKIPPING Episode {episode}: Sample '{acfg_file_name}' has no functions (empty acfg_list)")
+                print(f"   Hash: {acfg.get('hash', 'unknown')}")
+                print(f"   This sample cannot be processed by MalGraph.")
+                episode += 1
+                continue
+            
             # NOTE: No need to clear replay buffer anymore!
             # After pooling fix, all experiences are fixed-size [embedding_dim]
             # so they batch perfectly regardless of which sample they came from.
@@ -180,7 +225,17 @@ class SRLMalGraphTrainer:
             
             # Train episode
             print(f"\nEpisode {episode}: Training on sample '{acfg_file_name}'")
-            stats = self.train_episode(acfg, episode)
+            
+            try:
+                stats = self.train_episode(acfg, episode)
+            except ValueError as e:
+                if "ACFG processing failed" in str(e):
+                    print(f"⚠️ ERROR in Episode {episode}: {e}")
+                    print(f"   Skipping this sample and continuing training...")
+                    episode += 1
+                    continue
+                else:
+                    raise
             
             # Store statistics
             self.episode_rewards.append(stats['reward'])
@@ -226,16 +281,26 @@ class SRLMalGraphTrainer:
         
         # Training complete
         elapsed_time = time.time() - start_time
+        final_asr = np.mean(self.episode_bypassed[-100:])*100
         print(f"\n{'='*80}")
         print("Training Complete!")
         print(f"Total time: {elapsed_time/3600:.2f} hours")
-        print(f"Final success rate: {np.mean(self.episode_bypassed[-100:])*100:.1f}%")
+        print(f"Final success rate: {final_asr:.1f}%")
         print(f"{'='*80}\n")
         
         # Save final checkpoint
         final_path = os.path.join(self.checkpoint_dir, "final_model.pt")
         self.save_full_checkpoint(final_path, self.num_episodes)
         self.plot_training_curves()
+        
+        # Send completion notification
+        telegram_notify(
+            f"✅ Training Complete!\n"
+            f"Episodes: {self.num_episodes}\n"
+            f"Time: {elapsed_time/3600:.1f}h\n"
+            f"Final ASR: {final_asr:.1f}%\n"
+            f"Checkpoint: {final_path}"
+        )
     
     def evaluate(self, eval_acfgs: List[Dict], verbose: bool = False) -> Dict:
         """
@@ -314,6 +379,7 @@ class SRLMalGraphTrainer:
         """Save complete training checkpoint (agent + training state)."""
         # Save agent checkpoint
         self.agent.save_checkpoint(filepath)
+        telegram_notify(f"💾 Agent checkpoint saved at Episode {episode}\n Path: {filepath}")
         
         # Save training statistics alongside
         stats_path = filepath.replace('.pt', '_stats.json')
@@ -331,6 +397,7 @@ class SRLMalGraphTrainer:
             json.dump(stats, f, indent=2)
         
         print(f"Full checkpoint saved: {filepath} + stats")
+        telegram_notify(f"💾 Stats saved at Episode {episode}\n Path: {filepath} with Stats")
     
     def load_checkpoint(self, checkpoint_path: str):
         """Load checkpoint to resume training."""
@@ -440,23 +507,40 @@ def main():
     Usage:
         python srl_malgraph_training.py
     """
+    # Set random seeds for reproducibility
+    RANDOM_SEED = 42
+    np.random.seed(RANDOM_SEED)
+    torch.manual_seed(RANDOM_SEED)
+    torch.cuda.manual_seed_all(RANDOM_SEED)
+    # Make CuDNN deterministic (may impact performance slightly)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    print(f"\n{'='*80}")
+    print(f"Random seed set to {RANDOM_SEED} for reproducibility")
+    print(f"{'='*80}\n")
+    
     # Paths (adjust to your setup)
     ACFG_DIR = "/home/newdrive/makil/projects/SRL_Implementation/srl/datasets/agent_training_set/FINAL_2000_MAR_AUG_2024"  # Directory with ACFG JSON files
     LOG_DIR = "./logs/srl_malgraph"
     CHECKPOINT_DIR = "./checkpoints/srl_malgraph"
     
     # Hyperparameters (SRL paper settings)
-    NUM_EPISODES = 10000  # Reduced from 2500 for faster training
+    NUM_EPISODES = 5000  # Android SRL used 2500, using 5000 for better convergence
     NUM_TRAIN_SAMPLES = 2000  # 100 samples × 1000 episodes = 10 passes per sample
-    MAX_STEPS = 30  # SRL paper: max 30 iterations per sample
-    K_TOP_BLOCKS = 120  # SRL paper: 1250 effected basic blocks per iteration
+    MAX_STEPS = 100  # SRL paper: max 30 iterations per sample
+    K_TOP_BLOCKS = 200  # SRL paper: 1250 effected basic blocks per iteration
     BATCH_SIZE = 512  # SRL paper: minibatch size 512
     LR = 0.001  # RMSProp learning rate
     GAMMA = 0.9
     THRESHOLD = 0.14346  # MalGraph 100fpr threshold
     REPLAY_MEMORY = 3000  # SRL paper: 3000 most recent queries
-    EPSILON_DECAY = 3000  # SRL paper: decay over first 3000 queries
-    
+    TRAIN_FREQ = 4  # Train every 4 steps (standard DQN practice)
+    EPSILON_DECAY = 3000  # SRL paper: decay over first 3000 queries    
+    # Budget constraint (choose one):
+    # INJECTION_BUDGET = None      # DISABLED (like Android SRL) - no budget constraint
+    # INJECTION_BUDGET = 0.05      # 5% (SRL paper) - only works for large samples (>50K instructions)
+    # INJECTION_BUDGET = 0.30      # 30% - moderate constraint for medium samples
+    INJECTION_BUDGET = None        # 50% - loose constraint for small samples    
     print("Initializing SRL-MalGraph Training...")
     
     # Load dataset
@@ -489,6 +573,7 @@ def main():
         reward_type='sparse',  # SRL paper uses sparse rewards
         terminal_bonus=10.0,
         sortpooling_method='l2_norm',  # Non-trainable for baseline
+        injection_budget_pct=INJECTION_BUDGET,  # None to disable, or 0.05-0.50 for % constraint
         debug=False  # Set to True to see verification messages
     )
     print(f"   top_k_blocks={K_TOP_BLOCKS} (SRL paper setting)")
@@ -521,15 +606,41 @@ def main():
     )
     
     # Check if resuming from checkpoint
-    RESUME_CHECKPOINT = None  # Set to path like './checkpoints/checkpoint_ep500.pt' to resume
+    # Set to path like './checkpoints/checkpoint_ep500.pt' to resume
+    #RESUME_CHECKPOINT = '/home/newdrive/makil/projects/SRL_Implementation/checkpoints/srl_malgraph/checkpoint_ep500.pt'  
+    RESUME_CHECKPOINT = None
     
     if RESUME_CHECKPOINT and os.path.exists(RESUME_CHECKPOINT):
         print(f"\n⚠️  Resuming training from checkpoint: {RESUME_CHECKPOINT}")
+        telegram_notify(f"♻️ Resuming training from checkpoint:\n {RESUME_CHECKPOINT}")
         trainer.load_checkpoint(RESUME_CHECKPOINT)
     
     # Start training
     print("\n7. Starting training...")
-    trainer.train(acfgs, acfgs_file_names)
+    
+    # Send start notification
+    telegram_notify(
+        f"🚀 Training Started\n"
+        f"Episodes: {NUM_EPISODES}\n"
+        f"Samples: {len(acfgs)}\n"
+        f"Max Steps: {MAX_STEPS}\n"
+        f"K Blocks: {K_TOP_BLOCKS}"
+    )
+    
+    try:
+        trainer.train(acfgs, acfgs_file_names)
+    except Exception as e:
+        # Send failure notification
+        error_msg = (
+            f"❌ Training Failed!\n"
+            f"Error: {str(e)}\n\n"
+            f"Traceback:\n{traceback.format_exc()[:500]}"
+        )
+        telegram_notify(error_msg)
+        print(f"\n{'='*80}")
+        print("TRAINING FAILED - Telegram notification sent")
+        print(f"{'='*80}\n")
+        raise  # Re-raise to show full error
     
     print("\n[NOTE: Uncomment trainer.train() after setting up MalGraph classifier]")
     print("Training script ready!")

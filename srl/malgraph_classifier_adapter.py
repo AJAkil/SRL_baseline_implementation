@@ -148,14 +148,31 @@ class SRLMalGraphClassifierAdapter:
             else:
                 acfg_json = data
         
+        # Debug logging for ACFG structure
+        if isinstance(acfg_json, dict):
+            num_acfgs = len(acfg_json.get('acfg_list', []))
+            if num_acfgs == 0:
+                print(f"⚠️ WARNING: ACFG has 0 functions!")
+                print(f"   Hash: {acfg_json.get('hash', 'unknown')}")
+                print(f"   Keys: {list(acfg_json.keys())}")
+                if 'acfg_list' in acfg_json:
+                    print(f"   acfg_list length: {len(acfg_json['acfg_list'])}")
+        
         if self.mode == 'direct':
-            # DirectMalgraphClient expects bytes, but we have ACFG JSON
-            # We bypass get_score and call the model directly
+            # DirectMalgraphClient.model is a MalgraphServerFeature instance
+            # Call it directly with the ACFG dict
             score = self.classifier.model(acfg_json)
-            #print(f"DirectMalgraphClient score: {score}")
         else:
             # MalgraphServerFeature
             score = self.classifier(acfg_json)
+        
+        # Handle None return (ACFG processing failed)
+        if score is None:
+            raise ValueError(
+                f"ACFG processing failed - model returned None. "
+                f"Sample: {acfg_json.get('hash', 'unknown')}. "
+                f"This indicates an empty acfg_list (no functions/blocks found)."
+            )
         
         # Convert tensor to float if needed
         if torch.is_tensor(score):
