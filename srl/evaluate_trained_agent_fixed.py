@@ -111,7 +111,10 @@ def evaluate_agent(
                 'score': info['score']
             })
             
-          End timing for this sample
+            state = next_state
+            steps += 1
+        
+        # End timing for this sample
         sample_end_time = time.time()
         elapsed_seconds = sample_end_time - sample_start_time
         elapsed_minutes = int(elapsed_seconds // 60)
@@ -141,37 +144,81 @@ def evaluate_agent(
         if verbose:
             status = "✓ BYPASSED" if bypassed else "✗ FAILED"
             print(f"Sample {i+1}: {status} | Score: {initial_score:.4f} → {final_score:.4f} | "
-                  f"Mutations: {steps} | Reduction: {score_reduction:.4f} | Time: {elapsed_minutes}m {elapsed_secs:.2f}s
+                  f"Mutations: {steps} | Reduction: {score_reduction:.4f} | Time: {elapsed_minutes}m {elapsed_secs:.2f}s")
+    
+    # Compute aggregate metrics
+    total_samples = len(results)
+    successful = sum(1 for r in results if r['bypassed'])
+    failed = total_samples - successful
+    
     # Separate timing stats for bypassed vs failed
     bypassed_times = [r['elapsed_time_seconds'] for r in results if r['bypassed']]
     failed_times = [r['elapsed_time_seconds'] for r in results if not r['bypassed']]
     all_times = [r['elapsed_time_seconds'] for r in results]
     
+    # Bypassed samples timing metrics
+    if bypassed_times:
+        bypassed_total_hours = np.sum(bypassed_times) / 3600.0
+        bypassed_mean_seconds = np.mean(bypassed_times)
+        bypassed_mean_minutes = bypassed_mean_seconds / 60.0
+        bypassed_median_seconds = np.median(bypassed_times)
+        bypassed_median_minutes = bypassed_median_seconds / 60.0
+        bypassed_throughput = successful / bypassed_total_hours if bypassed_total_hours > 0 else 0.0
+    else:
+        bypassed_total_hours = 0.0
+        bypassed_mean_seconds = 0.0
+        bypassed_mean_minutes = 0.0
+        bypassed_median_seconds = 0.0
+        bypassed_median_minutes = 0.0
+        bypassed_throughput = 0.0
+    
+    # Failed samples timing metrics
+    if failed_times:
+        failed_total_hours = np.sum(failed_times) / 3600.0
+        failed_mean_seconds = np.mean(failed_times)
+        failed_mean_minutes = failed_mean_seconds / 60.0
+        failed_median_seconds = np.median(failed_times)
+        failed_median_minutes = failed_median_seconds / 60.0
+        failed_throughput = failed / failed_total_hours if failed_total_hours > 0 else 0.0
+    else:
+        failed_total_hours = 0.0
+        failed_mean_seconds = 0.0
+        failed_mean_minutes = 0.0
+        failed_median_seconds = 0.0
+        failed_median_minutes = 0.0
+        failed_throughput = 0.0
+    
     metrics = {
         'total_samples': total_samples,
         'successful_attacks': successful,
+        'failed_attacks': failed,
         'attack_success_rate': successful / total_samples,
         'avg_mutations': np.mean([r['num_mutations'] for r in results]),
         'avg_score_reduction': np.mean([r['score_reduction'] for r in results]),
         'avg_final_score': np.mean([r['final_score'] for r in results]),
         'median_mutations': np.median([r['num_mutations'] for r in results]),
         'budget_exceeded_count': sum(1 for r in results if r.get('budget_exceeded', False)),
-        # Timing statistics
+        # Overall timing statistics
         'avg_time_seconds': np.mean(all_times),
         'median_time_seconds': np.median(all_times),
         'total_time_seconds': np.sum(all_times),
-        'avg_time_bypassed_seconds': np.mean(bypassed_times) if bypassed_times else 0.0,
-        'avg_time_failed_seconds': np.mean(failed_times) if failed_times else 0.0,
+        'total_time_hours': np.sum(all_times) / 3600.0,
         'min_time_seconds': np.min(all_times),
-        'max_time_seconds': np.max(all_times
-        'total_samples': total_samples,
-        'successful_attacks': successful,
-        'attack_success_rate': successful / total_samples,
-        'avg_mutations': np.mean([r['num_mutations'] for r in results]),
-        'avg_score_reduction': np.mean([r['score_reduction'] for r in results]),
-        'avg_final_score': np.mean([r['final_score'] for r in results]),
-        'median_mutations': np.median([r['num_mutations'] for r in results]),
-        'budget_exceeded_count': sum(1 for r in results if r.get('budget_exceeded', False)),
+        'max_time_seconds': np.max(all_times),
+        # Bypassed samples timing
+        'bypassed_total_hours': bypassed_total_hours,
+        'bypassed_mean_seconds': bypassed_mean_seconds,
+        'bypassed_mean_minutes': bypassed_mean_minutes,
+        'bypassed_median_seconds': bypassed_median_seconds,
+        'bypassed_median_minutes': bypassed_median_minutes,
+        'bypassed_throughput_per_hour': bypassed_throughput,
+        # Failed samples timing
+        'failed_total_hours': failed_total_hours,
+        'failed_mean_seconds': failed_mean_seconds,
+        'failed_mean_minutes': failed_mean_minutes,
+        'failed_median_seconds': failed_median_seconds,
+        'failed_median_minutes': failed_median_minutes,
+        'failed_throughput_per_hour': failed_throughput,
         'per_sample_results': results
     }
     
@@ -186,6 +233,19 @@ def save_evaluation_report(metrics: Dict, output_path: str):
         metrics: Evaluation metrics
         output_path: Path to save report
     """
+    with open(output_path, 'w') as f:
+        json.dump(metrics, f, indent=2)
+    
+    print(f"\nEvaluation report saved to: {output_path}")
+
+
+def print_summary(metrics: Dict):
+    """
+    Print evaluation summary.
+    
+    Args:
+        metrics: Evaluation metrics
+    """
     # Format timing strings
     total_mins = int(metrics['total_time_seconds'] // 60)
     total_secs = metrics['total_time_seconds'] % 60
@@ -197,6 +257,7 @@ def save_evaluation_report(metrics: Dict, output_path: str):
     print("="*80)
     print(f"Total Samples:           {metrics['total_samples']}")
     print(f"Successful Attacks:      {metrics['successful_attacks']}")
+    print(f"Failed Attacks:          {metrics['failed_attacks']}")
     print(f"Attack Success Rate:     {metrics['attack_success_rate']*100:.2f}%")
     print(f"Avg Mutations:           {metrics['avg_mutations']:.2f}")
     print(f"Median Mutations:        {metrics['median_mutations']:.0f}")
@@ -204,30 +265,42 @@ def save_evaluation_report(metrics: Dict, output_path: str):
     print(f"Avg Final Score:         {metrics['avg_final_score']:.4f}")
     print(f"Budget Exceeded:         {metrics['budget_exceeded_count']} samples")
     print("-" * 80)
-    print("TIMING STATISTICS")
+    print("OVERALL TIMING STATISTICS")
     print("-" * 80)
-    print(f"Total Time:              {total_mins}m {total_secs:.2f}s")
+    print(f"Total Time:              {total_mins}m {total_secs:.2f}s ({metrics['total_time_hours']:.2f} hours)")
     print(f"Avg Time per Sample:     {avg_mins}m {avg_secs:.2f}s ({metrics['avg_time_seconds']:.2f}s)")
     print(f"Median Time:             {metrics['median_time_seconds']:.2f}s")
     print(f"Min Time:                {metrics['min_time_seconds']:.2f}s")
     print(f"Max Time:                {metrics['max_time_seconds']:.2f}s")
-    if metrics['avg_time_bypassed_seconds'] > 0:
-        print(f"Avg Time (Bypassed):     {metrics['avg_time_bypassed_seconds']:.2f}s")
-    if metrics['avg_time_failed_seconds'] > 0:
-        print(f"Avg Time (Failed):       {metrics['avg_time_failed_seconds']:.2f}
-        metrics: Evaluation metrics
-    """
-    print("\n" + "="*80)
-    print("EVALUATION SUMMARY")
-    print("="*80)
-    print(f"Total Samples:           {metrics['total_samples']}")
-    print(f"Successful Attacks:      {metrics['successful_attacks']}")
-    print(f"Attack Success Rate:     {metrics['attack_success_rate']*100:.2f}%")
-    print(f"Avg Mutations:           {metrics['avg_mutations']:.2f}")
-    print(f"Median Mutations:        {metrics['median_mutations']:.0f}")
-    print(f"Avg Score Reduction:     {metrics['avg_score_reduction']:.4f}")
-    print(f"Avg Final Score:         {metrics['avg_final_score']:.4f}")
-    print(f"Budget Exceeded:         {metrics['budget_exceeded_count']} samples")
+    
+    # Bypassed samples timing
+    if metrics['successful_attacks'] > 0:
+        print("-" * 80)
+        print(f"BYPASSED SAMPLES TIMING ({metrics['successful_attacks']} samples)")
+        print("-" * 80)
+        print(f"Total Time:              {metrics['bypassed_total_hours']:.2f} hours")
+        bypassed_mean_m = int(metrics['bypassed_mean_minutes'])
+        bypassed_mean_s = (metrics['bypassed_mean_minutes'] - bypassed_mean_m) * 60
+        print(f"Mean Time per Sample:    {bypassed_mean_m}m {bypassed_mean_s:.2f}s ({metrics['bypassed_mean_seconds']:.2f}s)")
+        bypassed_median_m = int(metrics['bypassed_median_minutes'])
+        bypassed_median_s = (metrics['bypassed_median_minutes'] - bypassed_median_m) * 60
+        print(f"Median Time per Sample:  {bypassed_median_m}m {bypassed_median_s:.2f}s ({metrics['bypassed_median_seconds']:.2f}s)")
+        print(f"Throughput:              {metrics['bypassed_throughput_per_hour']:.2f} samples/hour")
+    
+    # Failed samples timing
+    if metrics['failed_attacks'] > 0:
+        print("-" * 80)
+        print(f"FAILED SAMPLES TIMING ({metrics['failed_attacks']} samples)")
+        print("-" * 80)
+        print(f"Total Time:              {metrics['failed_total_hours']:.2f} hours")
+        failed_mean_m = int(metrics['failed_mean_minutes'])
+        failed_mean_s = (metrics['failed_mean_minutes'] - failed_mean_m) * 60
+        print(f"Mean Time per Sample:    {failed_mean_m}m {failed_mean_s:.2f}s ({metrics['failed_mean_seconds']:.2f}s)")
+        failed_median_m = int(metrics['failed_median_minutes'])
+        failed_median_s = (metrics['failed_median_minutes'] - failed_median_m) * 60
+        print(f"Median Time per Sample:  {failed_median_m}m {failed_median_s:.2f}s ({metrics['failed_median_seconds']:.2f}s)")
+        print(f"Throughput:              {metrics['failed_throughput_per_hour']:.2f} samples/hour")
+    
     print("="*80)
 
 
@@ -299,37 +372,20 @@ def main():
         embedding_dim=200,
         batch_size=512,  # Not used during eval, but needed for init
         memory_capacity=3000,
-    total_mins = int(metrics['total_time_seconds'] // 60)
-    total_secs = metrics['total_time_seconds'] % 60
-    avg_mins = int(metrics['avg_time_seconds'] // 60)
-    avg_secs = metrics['avg_time_seconds'] % 60
+        optimizer_type='rmsprop'
+    )
     
-    with open(summary_path, 'w') as f:
-        f.write("="*80 + "\n")
-        f.write("SRL-MalGraph Evaluation Summary\n")
-        f.write("="*80 + "\n")
-        f.write(f"Checkpoint: {args.checkpoint}\n")
-        f.write(f"Test Set: {args.test_dir}\n")
-        f.write(f"Total Samples: {metrics['total_samples']}\n")
-        f.write(f"Successful Attacks: {metrics['successful_attacks']}\n")
-        f.write(f"Attack Success Rate (ASR): {metrics['attack_success_rate']*100:.2f}%\n")
-        f.write(f"Average Mutations: {metrics['avg_mutations']:.2f}\n")
-        f.write(f"Median Mutations: {metrics['median_mutations']:.0f}\n")
-        f.write(f"Average Score Reduction: {metrics['avg_score_reduction']:.4f}\n")
-        f.write(f"Average Final Score: {metrics['avg_final_score']:.4f}\n")
-        f.write(f"Budget Exceeded: {metrics['budget_exceeded_count']} samples\n")
-        f.write("-"*80 + "\n")
-        f.write("TIMING STATISTICS\n")
-        f.write("-"*80 + "\n")
-        f.write(f"Total Time: {total_mins}m {total_secs:.2f}s\n")
-        f.write(f"Average Time per Sample: {avg_mins}m {avg_secs:.2f}s ({metrics['avg_time_seconds']:.2f}s)\n")
-        f.write(f"Median Time: {metrics['median_time_seconds']:.2f}s\n")
-        f.write(f"Min Time: {metrics['min_time_seconds']:.2f}s\n")
-        f.write(f"Max Time: {metrics['max_time_seconds']:.2f}s\n")
-        if metrics['avg_time_bypassed_seconds'] > 0:
-            f.write(f"Average Time (Bypassed): {metrics['avg_time_bypassed_seconds']:.2f}s\n")
-        if metrics['avg_time_failed_seconds'] > 0:
-            f.write(f"Average Time (Failed): {metrics['avg_time_failed_seconds']:.2f}
+    # Load checkpoint
+    print(f"\n5. Loading checkpoint from {args.checkpoint}...")
+    agent.load_checkpoint(args.checkpoint)
+    print("   Checkpoint loaded successfully!")
+    
+    # Load test set
+    print(f"\n6. Loading test set from {args.test_dir}...")
+    test_acfgs = load_test_acfgs(args.test_dir, max_samples=args.max_samples)
+    
+    # Evaluate
+    print(f"\n7. Evaluating on {len(test_acfgs)} test samples...")
     metrics = evaluate_agent(
         agent=agent,
         env=env,
@@ -347,6 +403,11 @@ def main():
     
     # Save summary text file
     summary_path = os.path.join(args.output_dir, "summary.txt")
+    total_mins = int(metrics['total_time_seconds'] // 60)
+    total_secs = metrics['total_time_seconds'] % 60
+    avg_mins = int(metrics['avg_time_seconds'] // 60)
+    avg_secs = metrics['avg_time_seconds'] % 60
+    
     with open(summary_path, 'w') as f:
         f.write("="*80 + "\n")
         f.write("SRL-MalGraph Evaluation Summary\n")
@@ -355,12 +416,50 @@ def main():
         f.write(f"Test Set: {args.test_dir}\n")
         f.write(f"Total Samples: {metrics['total_samples']}\n")
         f.write(f"Successful Attacks: {metrics['successful_attacks']}\n")
+        f.write(f"Failed Attacks: {metrics['failed_attacks']}\n")
         f.write(f"Attack Success Rate (ASR): {metrics['attack_success_rate']*100:.2f}%\n")
         f.write(f"Average Mutations: {metrics['avg_mutations']:.2f}\n")
         f.write(f"Median Mutations: {metrics['median_mutations']:.0f}\n")
         f.write(f"Average Score Reduction: {metrics['avg_score_reduction']:.4f}\n")
         f.write(f"Average Final Score: {metrics['avg_final_score']:.4f}\n")
         f.write(f"Budget Exceeded: {metrics['budget_exceeded_count']} samples\n")
+        f.write("-"*80 + "\n")
+        f.write("OVERALL TIMING STATISTICS\n")
+        f.write("-"*80 + "\n")
+        f.write(f"Total Time: {total_mins}m {total_secs:.2f}s ({metrics['total_time_hours']:.2f} hours)\n")
+        f.write(f"Average Time per Sample: {avg_mins}m {avg_secs:.2f}s ({metrics['avg_time_seconds']:.2f}s)\n")
+        f.write(f"Median Time: {metrics['median_time_seconds']:.2f}s\n")
+        f.write(f"Min Time: {metrics['min_time_seconds']:.2f}s\n")
+        f.write(f"Max Time: {metrics['max_time_seconds']:.2f}s\n")
+        
+        # Bypassed samples timing
+        if metrics['successful_attacks'] > 0:
+            f.write("-"*80 + "\n")
+            f.write(f"BYPASSED SAMPLES TIMING ({metrics['successful_attacks']} samples)\n")
+            f.write("-"*80 + "\n")
+            f.write(f"Total Time: {metrics['bypassed_total_hours']:.2f} hours\n")
+            bypassed_mean_m = int(metrics['bypassed_mean_minutes'])
+            bypassed_mean_s = (metrics['bypassed_mean_minutes'] - bypassed_mean_m) * 60
+            f.write(f"Mean Time per Sample: {bypassed_mean_m}m {bypassed_mean_s:.2f}s ({metrics['bypassed_mean_seconds']:.2f}s)\n")
+            bypassed_median_m = int(metrics['bypassed_median_minutes'])
+            bypassed_median_s = (metrics['bypassed_median_minutes'] - bypassed_median_m) * 60
+            f.write(f"Median Time per Sample: {bypassed_median_m}m {bypassed_median_s:.2f}s ({metrics['bypassed_median_seconds']:.2f}s)\n")
+            f.write(f"Throughput: {metrics['bypassed_throughput_per_hour']:.2f} samples/hour\n")
+        
+        # Failed samples timing
+        if metrics['failed_attacks'] > 0:
+            f.write("-"*80 + "\n")
+            f.write(f"FAILED SAMPLES TIMING ({metrics['failed_attacks']} samples)\n")
+            f.write("-"*80 + "\n")
+            f.write(f"Total Time: {metrics['failed_total_hours']:.2f} hours\n")
+            failed_mean_m = int(metrics['failed_mean_minutes'])
+            failed_mean_s = (metrics['failed_mean_minutes'] - failed_mean_m) * 60
+            f.write(f"Mean Time per Sample: {failed_mean_m}m {failed_mean_s:.2f}s ({metrics['failed_mean_seconds']:.2f}s)\n")
+            failed_median_m = int(metrics['failed_median_minutes'])
+            failed_median_s = (metrics['failed_median_minutes'] - failed_median_m) * 60
+            f.write(f"Median Time per Sample: {failed_median_m}m {failed_median_s:.2f}s ({metrics['failed_median_seconds']:.2f}s)\n")
+            f.write(f"Throughput: {metrics['failed_throughput_per_hour']:.2f} samples/hour\n")
+        
         f.write("="*80 + "\n")
     
     print(f"\nSummary saved to: {summary_path}")
