@@ -19,6 +19,7 @@ import json
 import argparse
 import time
 import numpy as np
+import torch
 from typing import Dict, List
 from tqdm import tqdm
 
@@ -76,6 +77,7 @@ def evaluate_agent(
         Evaluation metrics dictionary
     """
     results = []
+    skipped_count = 0
     
     for i, acfg_data in enumerate(tqdm(test_acfgs, desc="Evaluating")):
         # Start timing for this sample
@@ -86,6 +88,13 @@ def evaluate_agent(
             acfg = json.loads(acfg_data['result'])
         else:
             acfg = acfg_data
+        
+        # Skip empty ACFGs (same check as training)
+        if 'acfg_list' not in acfg or len(acfg.get('acfg_list', [])) == 0:
+            if verbose:
+                print(f"⚠️ SKIPPING Sample {i+1}: Empty acfg_list (no functions)")
+            skipped_count += 1
+            continue
         
         # Reset environment
         state = env.reset(acfg)
@@ -145,6 +154,10 @@ def evaluate_agent(
             status = "✓ BYPASSED" if bypassed else "✗ FAILED"
             print(f"Sample {i+1}: {status} | Score: {initial_score:.4f} → {final_score:.4f} | "
                   f"Mutations: {steps} | Reduction: {score_reduction:.4f} | Time: {elapsed_minutes}m {elapsed_secs:.2f}s")
+    
+    # Report skipped samples
+    if skipped_count > 0:
+        print(f"\n⚠️ Skipped {skipped_count} samples with empty acfg_list")
     
     # Compute aggregate metrics
     total_samples = len(results)
@@ -219,6 +232,7 @@ def evaluate_agent(
         'failed_median_seconds': failed_median_seconds,
         'failed_median_minutes': failed_median_minutes,
         'failed_throughput_per_hour': failed_throughput,
+        'skipped_samples': skipped_count,
         'per_sample_results': results
     }
     
@@ -264,6 +278,7 @@ def print_summary(metrics: Dict):
     print(f"Avg Score Reduction:     {metrics['avg_score_reduction']:.4f}")
     print(f"Avg Final Score:         {metrics['avg_final_score']:.4f}")
     print(f"Budget Exceeded:         {metrics['budget_exceeded_count']} samples")
+    print(f"Skipped (empty ACFG):    {metrics.get('skipped_samples', 0)} samples")
     print("-" * 80)
     print("OVERALL TIMING STATISTICS")
     print("-" * 80)
@@ -305,6 +320,14 @@ def print_summary(metrics: Dict):
 
 
 def main():
+    # Set seeds for reproducibility (same as training)
+    RANDOM_SEED = 42
+    np.random.seed(RANDOM_SEED)
+    torch.manual_seed(RANDOM_SEED)
+    torch.cuda.manual_seed_all(RANDOM_SEED)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    
     parser = argparse.ArgumentParser(description="Evaluate trained SRL-MalGraph agent")
     
     parser.add_argument("--checkpoint", type=str, required=True,
@@ -315,12 +338,12 @@ def main():
                         help="Directory to save evaluation results")
     parser.add_argument("--max_samples", type=int, default=None,
                         help="Maximum test samples to evaluate (default: all)")
-    parser.add_argument("--max_steps", type=int, default=30,
+    parser.add_argument("--max_steps", type=int, default=100,
                         help="Maximum mutations per sample (default: 30)")
     parser.add_argument("--threshold", type=float, default=0.14346,
-                        help="MalGraph classification threshold (default: 0.14346 for 100fpr)")
-    parser.add_argument("--top_k_blocks", type=int, default=1250,
-                        help="Number of blocks to mutate per step (default: 1250)")
+                        help="MalGraph classification threshold (default: 0.14346 for 100fpr and 0.91276 for 1000fpr)")
+    parser.add_argument("--top_k_blocks", type=int, default=200,
+                        help="Number of blocks to mutate per step (default: 200)")
     parser.add_argument("--verbose", action="store_true",
                         help="Print per-sample results")
     
@@ -362,7 +385,8 @@ def main():
         top_k_blocks=args.top_k_blocks,
         reward_type='sparse',
         terminal_bonus=10.0,
-        sortpooling_method='l2_norm'
+        sortpooling_method='l2_norm',
+        injection_budget_pct=None
     )
     
     # Initialize agent
@@ -423,6 +447,7 @@ def main():
         f.write(f"Average Score Reduction: {metrics['avg_score_reduction']:.4f}\n")
         f.write(f"Average Final Score: {metrics['avg_final_score']:.4f}\n")
         f.write(f"Budget Exceeded: {metrics['budget_exceeded_count']} samples\n")
+        f.write(f"Skipped (empty ACFG): {metrics.get('skipped_samples', 0)} samples\n")
         f.write("-"*80 + "\n")
         f.write("OVERALL TIMING STATISTICS\n")
         f.write("-"*80 + "\n")
