@@ -1,0 +1,36 @@
+================================================================================
+SRL-MalGraph Evaluation Summary (FINAL TEST SET ONLY)
+================================================================================
+Original Checkpoint: /home/newdrive/makil/projects/SRL_Implementation/srl/evaluation_results/1000FPR/evaluation_report.json
+Common Samples File: MG_1000_[VERIFICATION]_RANDOM_CALL_SITE_[FINAL_EXP_FOR_PAPER]_fc_attack_k_1_3_common_samples_ALL_ATTACKS.txt
+Total Samples (final test set): 2605
+Successful Attacks: 1831
+Failed Attacks: 774
+Attack Success Rate (ASR): 70.29%
+Average Mutations: 35.03
+Median Mutations: 9.0
+Average Score Reduction: 0.0334
+Average Final Score: 0.9297
+--------------------------------------------------------------------------------
+OVERALL TIMING STATISTICS
+--------------------------------------------------------------------------------
+Total Time: 270m 15.00s (4.50 hours)
+Average Time per Sample: 0m 6.22s (6.22s)
+Median Time: 2.08s
+Min Time: 0.01s
+Max Time: 241.44s
+--------------------------------------------------------------------------------
+BYPASSED SAMPLES TIMING (1831 samples)
+--------------------------------------------------------------------------------
+Total Time: 1.37 hours
+Mean Time per Sample: 0m 2.68s (2.68s)
+Median Time per Sample: 0m 1.85s (1.85s)
+Throughput: 1340.88 samples/hour
+--------------------------------------------------------------------------------
+FAILED SAMPLES TIMING (774 samples)
+--------------------------------------------------------------------------------
+Total Time: 3.14 hours
+Mean Time per Sample: 0m 14.60s (14.60s)
+Median Time per Sample: 0m 4.09s (4.09s)
+Throughput: 246.60 samples/hour
+================================================================================
